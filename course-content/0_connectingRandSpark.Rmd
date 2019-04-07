@@ -1,0 +1,16 @@
+---
+title: "Connecting R and Spark"
+output: html_notebook
+---
+
+
+## Databricks 
+Databricks is a commercial provider of a very convenient and hosted edition of spark.
+
+- clogin to https://community.cloud.databricks.com
+- create a folder
+- import from URL https://databricks-prod-cloudfront.cloud.databricks.com/public/4027ec902e239c93eaaa8714f173bcfc/22670026808712/1314898482972300/1650315298576381/latest.html
+- walk trhough the notebook
+- examine Spark UI
+
+## on your own laptop
