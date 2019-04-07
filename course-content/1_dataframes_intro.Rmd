@@ -1,0 +1,34 @@
+---
+title: "Introduction to DataFrames"
+output: html_notebook
+---
+
+Load spark
+
+```{r}
+library(sparklyr)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+spark <- spark_connect(master = "local", config = conf)
+```
+
+One hour of Pagecounts from the Wikimedia projects captured March 1st, 2019, at 12:00 PM UTC.
+
+- Filetype: gzip compressed parquet
+- size 80MB
+
+## Create a DataFrame
+Read the Parquet files into a DataFrame.
+
+```{r}
+pagecountsEnAllDF <- spark_read_parquet(spark, "datasets/wikimedia_edits.parquet")
+```
+
+Look to the right side of RStudio and use the Spark pane in the connections tab to examine the dataset.
+
+## 
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```
