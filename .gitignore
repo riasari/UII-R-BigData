@@ -4,3 +4,5 @@
 .Ruserdata
 0_connectingRandSpark.nb.html
 course-content/packrat/src
+derby.log
+log4j.spark.log
