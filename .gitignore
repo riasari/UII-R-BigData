@@ -7,3 +7,4 @@ course-content/packrat/src
 derby.log
 log4j.spark.log
 1_dataframes_intro.nb.html
+course-content/logs
