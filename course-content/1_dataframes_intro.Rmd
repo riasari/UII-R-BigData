@@ -7,6 +7,8 @@ Load spark
 
 ```{r}
 library(sparklyr)
+library(dplyr)
+library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
 spark <- spark_connect(master = "local", config = conf)
@@ -100,7 +102,95 @@ pagecountsAllDF %>%
 
 Watch the results closely and examine how good they lign up. Note, there is a tunable accuracy for the approximate method.
 
-## Spark API
+## Spark API Documentation
+
+Find it here https://spark.apache.org/docs/latest/. Other Documentation:
+
+- Programming Guides for DataFrames, SQL, Graphs, Machine Learning, Streaming...
+- Deployment Guides for Spark Standalone, Mesos, Yarn...
+- Configuration, Monitoring, Tuning, Security...
+
+There is a different API and corresponding documentation for each language:
+- [scala](https://spark.apache.org/docs/latest/api/scala/index.html#org.apache.spark.package)
+- [java](https://spark.apache.org/docs/latest/api/java/index.html)
+- [python](https://spark.apache.org/docs/latest/api/python/index.html)
+- [R](https://spark.apache.org/docs/latest/api/R/index.html) for sparkR
+- [sparklyR](https://spark.rstudio.com/)
+- [SQL](https://spark.apache.org/docs/latest/api/sql/index.html) also helpful in case a function is missing in the sparklyR API
+
+## show
+
+Spark usually differenciates between `show()`, `take(n)` and `collect()` which either show the first couple of rows to standard out, return the first n records as an array or collect the entire Dataframe into the memory of the Driver. Be careful with `collect` as it can easily kill the driver node with out of memory exception unless the data is filtered or aggregated first.
+
+
+With sparklyR a simple:
+
+```{r}
+pagecountsAllDF
+
+# be careful with what you collect locally
+local_df <- sparklyr::collect(pagecountsAllDF)
+```
+is enough as the tibble is automatically reduced in the output a paginated table for the first couple of 1000 records.
+
+## transformation vs. action
+
+```{r}
+transformedDf <- pagecountsAllDF %>%
+  filter(requests == 1)
+```
+
+Notice how "nothing" happened -  no job was triggered.
+We are simply defining the next step in our transformations.
+It's not until we induce an action that a job is triggered and the data is processed.
+
+
+```{r}
+transformedDf
+```
+
+## slect
+
+If you do not want to look at all the columns use `select()` 
+
+```{r}
+pagecountsAllDF %>%
+    select(requests, bytes_served) 
+```
+
+It is one of the most powerful and commonly used transformations. `drop()` works similarly, but instead of keeping, removes the staed columns:
+
+```{r}
+pagecountsAllDF %>%
+  select(-requests, -article)
+```
+
+## distinct and drop duplicates
+
+Removes duplicates.
+> WARNING ordering of records is important if you care about which duplicate is kept. Posibly a different column (time) might have an impact. To reliably deduplicate in such a case you should use a window function with rank.
+
+```{r}
+pagecountsAllDF %>%
+  distinct(requests)
+```
+
+## SQL temporary view
+
+If you want to execute plain SQL this is also really easy:
+
+```{sql connection=spark}
+SELECT * FROM wikimedia_edits LIMIT 2
+```
+
+## LAB 1
+go to Lab 1 and try it yourself
+
+## orderBy
+
+```{r}
+
+```
 
 
 ## cleanup

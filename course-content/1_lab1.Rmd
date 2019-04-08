@@ -1,0 +1,29 @@
+---
+title: "Introduction to Dataframes - Lab 1"
+output: html_notebook
+---
+
+```{r}
+library(sparklyr)
+spark <- spark_connect(master = "local")
+input <- "datasets/wikimedia_edits.parquet"
+```
+
+## task
+
+- read the parquet file from `input` into spark
+- reduce columns to only one
+- calculate a unique set of values
+- count the remaining articles
+
+```{r}
+# TODO fill in
+```
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```
