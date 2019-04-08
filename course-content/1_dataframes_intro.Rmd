@@ -12,7 +12,7 @@ conf$`sparklyr.shell.driver-memory` <- "8G"
 spark <- spark_connect(master = "local", config = conf)
 ```
 
-One hour of Pagecounts from the Wikimedia projects captured March 1st, 2019, at 12:00 PM UTC.
+One hour of Pagecounts from the Wikimedia projects captured March 1st, 2019, at 12:00 PM UTC. It can be obtained from https://dumps.wikimedia.org/other/pageviews/2019/2019-03/ and documentatin is found at: https://dumps.wikimedia.org/other/pageviews/readme.html
 
 - Filetype: gzip compressed parquet
 - size 80MB
@@ -21,12 +21,89 @@ One hour of Pagecounts from the Wikimedia projects captured March 1st, 2019, at 
 Read the Parquet files into a DataFrame.
 
 ```{r}
-pagecountsEnAllDF <- spark_read_parquet(spark, "datasets/wikimedia_edits.parquet")
+pagecountsAllDF <- spark_read_parquet(spark, "datasets/wikimedia_edits.parquet")
 ```
 
 Look to the right side of RStudio and use the Spark pane in the connections tab to examine the dataset.
 
-## 
+## counting records
+The `count()` action:
+> Returns the number of rows in the Dataset.
+
+`count()` will trigger a job to process the request and return a value.
+
+To count all records in our `DataFrame` execute:
+
+```{r}
+sdf_nrow(pagecountsAllDF)
+```
+
+That tells us that there are around $6$ million rows.
+
+Before taking a closer look let's introduce a technique that speeds up processing.
+
+## `cache` and `persist``
+Iterative algorithms, i.e. when a dataframe is used at least twice can greatly improve performance when caching intermediate results in memory or persisting to disk.
+
+```{r}
+tbl_cache(spark, "wikimedia_edits", force=FALSE)
+# now go to: http://localhost:4040/storage/
+sdf_nrow(pagecountsAllDF)
+         # cache the dataframe
+         # maaterialize
+```
+
+Run the `count` command again. It should be faster now. Again, look at the spark UI and see what is different in the execution graph.
+
+```{r}
+sdf_nrow(pagecountsAllDF)
+```
+
+To remove a table from the chace use: `sparklyr::tbl_uncache()`, but this is not necessary now.
+
+## the data
+`printSchema` shows the schema of the data, i.e. the data types for each column.
+
+```{r}
+sdf_schema(pagecountsAllDF)
+```
+
+Show unique values per project.
+
+```{r}
+pagecountsAllDF %>%
+  select(project) %>%
+    distinct()
+```
+
+When we also want to count how many unique values are present:
+
+```{r}
+pagecountsAllDF %>%
+  group_by(project)%>%
+  summarise(count_per_project = count())
+```
+
+When counting for unique number of articles per project, an approximative solution might be faster:
+
+```{r}
+# dplyr exact
+pagecountsAllDF %>%
+  group_by(project)%>%
+  summarise(count_unique = n_distinct(article))
+
+# dplyr approx
+pagecountsAllDF %>%
+  group_by(project)%>%
+  summarise(count_unique = approx_count_distinct(article))
+```
+
+Watch the results closely and examine how good they lign up. Note, there is a tunable accuracy for the approximate method.
+
+## Spark API
+
+
+## cleanup
 
 Finally, close the spark session again.
 ```{r}
