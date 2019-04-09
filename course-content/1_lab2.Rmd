@@ -1,0 +1,42 @@
+---
+title: "Introduction to Dataframes - Lab 2"
+output: html_notebook
+---
+
+```{r}
+library(sparklyr)
+spark <- spark_connect(master = "local")
+
+pagecountsAllDF <- spark_read_parquet(spark, "datasets/wikimedia_edits.parquet")
+```
+
+## task
+
+- Filter the result to the en Wikipedia project.
+- Find all the articles where the name of the article ends with `Washington` (presumably "George Washington", "Martha Washington, etc)
+- Return all records as an array to the Driver.
+- Total the requests for the Washingtons and assign it to the variable `totalWashingtons`.
+Assign your array of Washingtons (the return value of your action) to the variable `washingtons`.
+
+Bonus: repeat the exercise for the Adams
+
+- Find all the articles where the name of the article ends with `Adams` (presumably "John Adams", "John Quincy Adams", etc)
+- Return all records as an array to the Driver.
+- Total the requests for the Adamas and assign it to the variable `totalAdams`.
+- Assign your array of Adamas (the return value of your action) to the variable `adams`.
+
+>But you cannot do it the same way twice:
+>In the filter, don't use the same conditional method as the one used for the >Washingtons.
+>Don't use the same action as used for the Washingtons.
+
+```{r}
+# TODO fill in
+```
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```

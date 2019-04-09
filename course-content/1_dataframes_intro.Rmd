@@ -135,6 +135,8 @@ is enough as the tibble is automatically reduced in the output a paginated table
 
 ## transformation vs. action
 
+Here, we use the filter function (similar to SQL `WHERE`) to keep only rows matching our kriterion.
+
 ```{r}
 transformedDf <- pagecountsAllDF %>%
   filter(requests == 1)
@@ -188,10 +190,93 @@ go to Lab 1 and try it yourself
 
 ## orderBy
 
-```{r}
+Looking at the data it is apparent that there is no reason to assume the data is sorted on any of the columns.
 
+To answer:
+*What are the top 10 most requested articles?*
+explicit ordering can be imposed:
+
+```{r}
+pagecountsAllDF %>% 
+  arrange(requests)
 ```
 
+This sorts the data, but in the wrong direction. We want to sort in descending order:
+
+```{r}
+pagecountsAllDF %>% 
+  arrange(desc(requests))
+```
+
+And there are many more useful functions. Be sure to check out https://spark.rstudio.com/dplyr/
+
+## window functions
+Another useful kind of function are window functions
+
+Let's work on another dataset. This time we copy an existing dataframe from R to spark.
+```{r}
+library(nycflights13)
+flights <- copy_to(spark, flights, "flights")
+airlines <- copy_to(spark, airlines, "airlines")
+```
+
+Now using a specific ordering per group it is easy to identify the first and last records (rank them) to figure out the most and least delayed flight per day
+
+```{r}
+bestworst <- flights %>%
+  group_by(year, month, day) %>%
+  select(dep_delay) %>% 
+  filter(dep_delay == min(dep_delay) || dep_delay == max(dep_delay))
+```
+
+to debug we can have a look at the generate SQL statements:
+
+```{r}
+dbplyr::sql_render(bestworst)
+```
+
+Notice, no actual computation has been performed until now. The results are:
+
+```{r}
+bestworst
+```
+
+## JOINs
+
+Spark supports various JOINs. Even non-equi-joins are possible.
+![various JOINs](img/join-types.png)
+```{r}
+flights %>% left_join(airlines)
+```
+
+## writing data
+
+Spark supports reading and writing data from and to various systems and file formats.
+![swiss army knife](img/ecosystem.png)
+Writing to parquet, especially if gzip compressed still can be useful even for medium sized local files. The compression can be impressive.
+
+```{r}
+spark_write_parquet(flights, "datasets/flights" , mode="overwrite", options = list(compression="gzip"))
+```
+
+Notice the difference:
+```{r}
+spark_write_parquet(flights, "datasets/flights" ,partition_by = "carrier", mode="overwrite", options = list(compression="gzip"))
+```
+
+This command writes the data using partitioning.
+In the Hadoop world, this commonly is referred to partition pruning. When querying for a specific value of the partitioning column, only the matching files will be read into memory.
+
+See the result in our case:
+
+```{bash}
+ls datasets/flights
+```
+
+Optimizing for the common case can greatly influence the speed of analytical queries.
+
+## LAB 1
+go to Lab 1 and try it yourself
 
 ## cleanup
 

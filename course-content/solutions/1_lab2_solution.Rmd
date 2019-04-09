@@ -1,0 +1,13 @@
+---
+title: "Introduction to Dataframes - Lab 2 - Solution"
+output: html_notebook
+---
+
+
+```{r}
+pagecountsAllDF %>%
+  filter(rlike(article, "Adams$"))
+         
+pagecountsAllDF %>%
+  filter(article %like% "%Washington%")
+```
