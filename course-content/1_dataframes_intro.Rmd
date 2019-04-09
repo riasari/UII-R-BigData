@@ -275,8 +275,60 @@ ls datasets/flights
 
 Optimizing for the common case can greatly influence the speed of analytical queries.
 
-## LAB 1
-go to Lab 1 and try it yourself
+## LAB 2
+go to Lab 2 and try it yourself
+
+## Data Cleaning
+
+Load a new dataset. This time, we use a CSV file. It is `gzip`compressed. Luckily, spark can handle it well. It can be downloaded at: https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page which contains information about NYC taxi trips. Simply put multiple months into a folder.
+
+```{r}
+initialDf <- spark_read_csv(spark, "datasets/green_tripdata_2018-01.csv.gz", infer_schema = FALSE)
+```
+
+Got to the spark UI at http://localhost:4040/jobs/ when `infer_schema = TRUE` spark requires two passes over the data. This is really convienent, but may be:
+- slow
+- inaccurate
+It is always a good idea to specify an explicit schema.
+
+> Explicit is better than implicit.
+
+```{r}
+initialDf <- spark_read_csv(spark, "datasets/green_tripdata_2018-01.csv.gz", infer_schema = TRUE)
+
+# as this is slow
+# in a real world scenario things will be structured in databases
+# sparklyr::src_databases(spark)
+# tbl_change_db(<<m<_db>>)
+dplyr::src_tbls(spark)
+
+# cache it once so interactive steps later are faster
+tbl_cache(spark, "green_tripdata_201801_csv")
+```
+
+Notice how the datatypes changed when schema inference is on.
+
+To rename a column:
+```{r}
+renamed <- initialDf %>%
+  select(extra) %>%
+  rename(extra_things = "extra")
+sdf_schema(renamed)
+```
+
+The timestamps have been recognized nicely.
+
+```{r}
+initialDf %>%
+  select (lpep_dropoff_datetime) %>%
+  mutate(today = current_date()) %>% # notice we can use Hive UDF
+  mutate(currentTc = as.integer(year(lpep_dropoff_datetime))) %>% # and also cast
+  mutate(useless_tc = date_format(lpep_dropoff_datetime, "yyyy-dd")) # and also castthe data type
+```
+
+## Aggregations
+
+`groupBy()`
 
 ## cleanup
 
