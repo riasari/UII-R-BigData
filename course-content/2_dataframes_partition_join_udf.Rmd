@@ -149,6 +149,10 @@ spark_apply(iris_tbl, function(e) stop("Make this fail"))
 To use R packages inside Spark, your packages must be installed on the worker nodes. The first time you call spark_apply all of the contents in your local .libPaths() will be copied into each Spark worker node via the SparkConf.addFile() function. Packages will only be copied once and will persist as long as the connection remains open. It’s not uncommon for R libraries to be several gigabytes in size, so be prepared for a one-time tax while the R packages are copied over to your Spark cluster. You can disable package distribution by setting packages = FALSE. Note: packages are not copied in local mode (master="local") because the packages already exist on the system.
 
 
+## Reading JSON
+
+Find some JSON files and load them into spark.
+Examine the schema.
 
 ## cleanup
 

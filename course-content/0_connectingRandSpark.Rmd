@@ -83,3 +83,4 @@ Finally, close the spark session again.
 ```{r}
 spark_disconnect(spark)
 ```
+Now have a brief look at https://ugoproto.github.io/ugo_r_doc/sparklyr.pdf and book mark it. We will need this later.

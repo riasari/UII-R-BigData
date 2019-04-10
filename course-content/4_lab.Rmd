@@ -1,0 +1,17 @@
+---
+title: "ML Lab"
+output: html_notebook
+---
+
+## Task:
+
+- Perform an exploratory analysis of the Online Retail Data Set  https://archive.ics.uci.edu/ml/datasets/Online%20Retail 
+
+- what are top 10 most frequently sold products?
+- what items are frequently bought together?
+- what is the recommendation 
+- recommend next best action / next purchase
+
+## solution
+
+https://rstudio-pubs-static.s3.amazonaws.com/430563_d38c12b53d724fa6852949b1f3e4ffbf.html

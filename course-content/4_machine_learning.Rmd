@@ -54,13 +54,33 @@ ml_predict(kmeans_model) %>%
   )
 ```
 
+Another example ALS:
+```{r}
+movies <- data.frame(user   = c(1, 2, 0, 1, 2, 0),
+                     item   = c(1, 1, 1, 2, 2, 0),
+                     rating = c(3, 1, 2, 4, 5, 4))
+
+copy_to(spark, movies) %>%
+  ml_als(rating ~ user + item) %>%
+  augment()
+```
+
+## Pipelines
+
+Pipelines(https://spark.rstudio.com/guides/pipelines/) are a great way to combine a multi step ML process into a neat object which can easily be cross-validated or reused.
+
 > Spark is just a tool to run machine learning models on larger data!
 Make sure to understand the concepts of machine learning without spark first.
 
 There are many more machine learning models out there which are not supported by spark. But as shown in section UADF it is quite simple to parallelize these using sparklyR.
 
+Be sure to check out https://github.com/harryprince/awesome-sparklyr and particularly
+- https://github.com/rstudio/mleap
+- https://github.com/mlflow/mlflow/tree/master/mlflow/R/mlflow
+which are well suited for production serving of ML models.
+
 ## lab task
-Many more algorithms can be explored at https://spark.rstudio.com/mlib/ go through them as a lab exercise. Also look at https://spark.rstudio.com/graphframes/
+Many more algorithms can be explored at https://spark.rstudio.com/mlib/ go through them as a lab exercise. Also look at https://spark.rstudio.com/graphframes/ and https://github.com/rstudio/sparkxgb and the other links from https://github.com/harryprince/awesome-sparklyr
 
 ## cleanup
 
