@@ -1,0 +1,29 @@
+---
+title: "Machine Learning"
+output: html_notebook
+---
+
+Load spark
+
+```{r}
+library(sparklyr)
+library(dplyr)
+library(arrow)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+spark <- spark_connect(master = "local", config = conf)
+```
+
+
+```{r}
+
+```
+
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```

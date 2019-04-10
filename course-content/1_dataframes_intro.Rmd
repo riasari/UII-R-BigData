@@ -115,7 +115,7 @@ There is a different API and corresponding documentation for each language:
 - [java](https://spark.apache.org/docs/latest/api/java/index.html)
 - [python](https://spark.apache.org/docs/latest/api/python/index.html)
 - [R](https://spark.apache.org/docs/latest/api/R/index.html) for sparkR
-- [sparklyR](https://spark.rstudio.com/)
+- [sparklyR](https://spark.rstudio.com/reference/)
 - [SQL](https://spark.apache.org/docs/latest/api/sql/index.html) also helpful in case a function is missing in the sparklyR API
 
 ## show
@@ -184,6 +184,14 @@ If you want to execute plain SQL this is also really easy:
 ```{sql connection=spark}
 SELECT * FROM wikimedia_edits LIMIT 2
 ```
+Also, if you want to store the result of the query into a dataframe to continue using it later on in the analytical process:
+
+```{r}
+sql_df <- sdf_sql(spark, "SELECT * FROM wikimedia_edits LIMIT 2")
+dbplyr::sql_render(sql_df)
+sql_df
+```
+
 
 ## LAB 1
 go to Lab 1 and try it yourself
@@ -300,7 +308,7 @@ initialDf <- spark_read_csv(spark, "datasets/green_tripdata_2018-01.csv.gz", inf
 # in a real world scenario things will be structured in databases
 # sparklyr::src_databases(spark)
 # tbl_change_db(<<m<_db>>)
-dplyr::src_tbls(spark)
+src_tbls(spark)
 
 # cache it once so interactive steps later are faster
 tbl_cache(spark, "green_tripdata_201801_csv")
@@ -345,6 +353,31 @@ delayPerCarrier
 
 This function is a **wide** transformation - it will produce a shuffle and conclude a stage boundary.
 Also note that `collect_set` creates an array of all unique values, `collect_list` would instead accumulate all vallues.
+
+We can even nicely visualize the datasets:
+- group fligths by tail_num
+- aggregate by `count(*)`, mean distance as `dist`, mean delay as delay
+- where `count>20` and `dist<2000` and `delay is not null`
+```{r}
+delay <- flights %>% group_by(tailnum) %>% summarise(
+  count = n(),
+  dist = mean(distance),
+  delay = mean(arr_delay)
+) %>% filter(count > 20,
+             dist <
+               2000,!is.na(delay)) %>% collect()
+head(delay)
+```
+plot the results
+
+- create a scatterplot of results of `dist` and `delay`
+- include a regression line
+```{r}
+library(ggplot2)
+ggplot(
+  delay,aes(dist,delay))+
+  geom_point(aes(size=count),alpha=1/2)+ geom_smooth()+ scale_size_area(max_size=2)
+```
 
 ## higher order functions
 

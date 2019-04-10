@@ -1,0 +1,12 @@
+---
+title: "Scala UDF"
+output: html_notebook
+---
+
+**Advanced Topic**
+It is possible to write Java or Scala UDFs.
+One example can be found at https://github.com/javierluraschi/sparklyudf
+
+Be sure to read the documentation on extensions https://spark.rstudio.com/extensions/
+
+Advantages: no R <-> JVM serialization overhead, still not optimized by catalyst unless custom catalyst optimization rules have been created.
