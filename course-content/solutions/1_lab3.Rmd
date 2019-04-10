@@ -1,0 +1,34 @@
+---
+title: "Introduction to Dataframes - Lab 3"
+output: html_notebook
+---
+
+```{r}
+library(sparklyr)
+spark <- spark_connect(master = "local")
+
+pagecountsAllDF <- spark_read_parquet(spark, "datasets/wikimedia_edits.parquet")
+```
+
+## task
+
+Your job is to remove the duplicate records. The specific requirements of your job are:
+
+* Remove duplicates. Select  only the `project` column. Then remove the dupicates, It doesn't matter which record you keep; it only matters that you keep one of them.
+* Preserve the data format of the columns.
+* Write the result as a Parquet file.
+
+```{r}
+# TODO fill in
+
+# HINT: add an addtional column with mutate, and lowercase
+# then drop duplicates
+```
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```

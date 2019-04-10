@@ -328,7 +328,54 @@ initialDf %>%
 
 ## Aggregations
 
-`groupBy()`
+Aggregating data is a very common task and can be achieved with `GROUP BY` in SQL. There are many aggregate functions. A very common one is the `MEAN`, but many more are available. Without grouping, these aggregates are applied to the whole dataframe:
+
+```{r}
+flights %>%
+  summarise(mean_dep_delay = mean(dep_delay))
+```
+But now we would like to calculate the delay per carrier and not in total. This can be achieved using:
+```{r}
+delayPerCarrier <- flights %>%
+    group_by(carrier) %>%
+  summarise(mean_dep_delay = mean(dep_delay), 
+            data=sort_collect_set(dep_delay)) # note also less common aggregate functions are available
+delayPerCarrier
+```
+
+This function is a **wide** transformation - it will produce a shuffle and conclude a stage boundary.
+Also note that `collect_set` creates an array of all unique values, `collect_list` would instead accumulate all vallues.
+
+## higher order functions
+
+From time to time instead of using window functions which might require quite some shuffle IO it is more efficient to collect all the records per group into a single computer and then operate there. This is a very new function for spark and only available as of 2.4. A great introduction is found at https://databricks.com/session/an-introduction-to-higher-order-functions-in-spark-sql as well as here https://databricks.com/blog/2018/11/16/introducing-new-built-in-functions-and-higher-order-functions-for-complex-data-types-in-apache-spark.html.
+
+Unfortunately, sparklyR does not yet support this kind of query well. https://github.com/rstudio/sparklyr/issues/1773 but this allows to demonstrate how to run a raw SQL query against a data frame.
+
+```{r}
+delayPerCarrier %>% 
+  ft_sql_transformer("
+    SELECT carrier,
+           mean_dep_delay,
+           data,
+           TRANSFORM(data, element -> element +1) AS data_plus,
+           FILTER(data, element -> element <5) AS filtered_data
+    FROM   __THIS__")
+```
+
+> WARN TODO  fix this function, output does not make sense. https://github.com/rstudio/sparklyr/issues/1773
+
+## date format
+
+Aggregate taxi rides by day of week
+
+```{r}
+initialDf %>%
+  group_by(date_format(lpep_pickup_datetime,'E')) %>%
+  count()
+```
+
+
 
 ## cleanup
 

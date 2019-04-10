@@ -1,0 +1,37 @@
+---
+title: "User Defined Functions (UDF)"
+output: html_notebook
+---
+
+Load spark
+
+```{r}
+library(sparklyr)
+library(dplyr)
+library(arrow)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+spark <- spark_connect(master = "local", config = conf)
+```
+
+It looks like Dataframes can do anything. But they can't. They are limited to the classical SQL commands. But they can do more. Using UDF (user definded functions) you can run any procedural code or R command in a distributed way over more data to quicker gain results.
+
+However, they come with a cost...
+
+- UDFs cannot be optimized by the Catalyst Optimizer - someday, maybe, but for now it has no insight to your code, unless you write custom catalyst optimizations (which are rather complex to create).
+- The function has to be serialized and sent out to the executors - this is a one-time cost, but a cost just the same.
+- If you are not careful, you could serialize the whole world.
+- In the case of Python or R, there is even more over head - we have to spin up a Python / R interpreter on every Executor to run your Lambda and transfer the data between the JVM and the Python / R process.
+
+```{r}
+
+```
+
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```
