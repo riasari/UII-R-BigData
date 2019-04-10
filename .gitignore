@@ -15,3 +15,6 @@ course-content/datasets/flights
 1_lab3.nb.html
 2_UDF.nb.html
 *.html
+course-content/checkpoints
+course-content/streaming_destination
+course-content/streaming_source

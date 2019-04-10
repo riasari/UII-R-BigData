@@ -1,0 +1,108 @@
+---
+title: "Applications - Geospatial (experimental)"
+output: html_notebook
+---
+
+When working with geospatial data in R the $sf$ package usually is a great tool.
+But when the data increases one needs to scale out processing capabilities.
+Geospark is such a tool. Rcently it added a R API (https://github.com/harryprince/geospark) which now also allows R to tap into the big geospatial ecosystem.
+
+# installation
+
+geospark: mandatroy to run this example
+sf, gdal udunits2 are optional (required for visualization)
+
+sf
+> TODO get sf to install
+
+```{r eval=FALSE, include=TRUE}
+# udunits2 requires a native dependency
+# on a mac install via brew install udunits
+#install.packages("udunits2")
+
+# same goes for rgdal in case you face probblems
+# install.packages('rgdal')
+
+install.packages("sf")
+```
+
+dplyr needs a more current release than CRAN
+```{r eval=FALSE, include=TRUE}
+devtools::install_github("tidyverse/dplyr")
+devtools::install_github("tidyverse/dbplyr")
+```
+
+
+geospark 
+
+```{r eval=FALSE, include=TRUE}
+devtools::install_github("harryprince/geospark")
+```
+
+Then instanciate your spark session. But add additional configuration to use the `GeoSpark` kryo serializer to improve efficiency.
+```{r}
+library(sparklyr)
+library(geospark)
+
+library(dplyr)
+library(ggplot2)
+library(arrow)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+
+# Enable kryo to decrease serialization overhead
+conf$spark.serializer <- "org.apache.spark.serializer.KryoSerializer"
+conf$spark.kryo.registrator <- "org.datasyslab.geospark.serde.GeoSparkKryoRegistrator"
+
+spark <- spark_connect(master = "local", config = conf)
+register_gis(spark)
+```
+
+![broadcast join](img/geospark-r.png) describes the architecture
+
+Let's load some data points:
+
+```{r}
+polygons <- read.table(system.file(package="geospark","examples/polygons.txt"), sep="|", col.names=c("area","geom"))
+points <- read.table(system.file(package="geospark","examples/points.txt"), sep="|", col.names=c("city","state","geom"))
+
+polygons_wkt <- copy_to(spark, polygons)
+points_wkt <- copy_to(spark, points)
+```
+
+A quick visualization of the geometries:
+```{r}
+M1 = polygons %>%
+sf::st_as_sf(wkt="geom") %>% mapview::mapview()
+
+
+M2 = points %>%
+sf::st_as_sf(wkt="geom") %>% mapview::mapview()
+
+M1+M2
+```
+
+## geospatial SQL
+
+Now we can perform a GeoSpatial join using the st_contains which converts wkt into geometry object with 4326 crs which means a wgs84 projection. To get the original data from wkt format, we will use the st_geomfromwkt functions. We can execute this spatial query:
+
+> TODO fails https://github.com/harryprince/geospark/issues/9
+
+```{r}
+polygons_wkt <- mutate(polygons_wkt, poly = st_geomfromwkt(geom, "4326"))
+points_wkt <- mutate(points_wkt, point = st_geomfromwkt(geom, "4326"))
+
+sc_res = inner_join(polygons_wkt, points_wkt, by = sql("st_contains(poly, point)")) %>% 
+  group_by(area, state) %>%
+  summarise(cnt = n())
+  
+sc_res %>%
+  head()
+```
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```

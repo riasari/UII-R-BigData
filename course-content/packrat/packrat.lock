@@ -84,11 +84,27 @@ Hash: 2c1abd749c826a39101a156ed0afc9be
 Requires: backports, dplyr, generics, purrr, reshape2, stringr, tibble,
     tidyr
 
+Package: callr
+Source: CRAN
+Version: 3.2.0
+Hash: a6f55e383e4a82bf953aa92136c18d58
+Requires: R6, processx
+
 Package: cli
 Source: CRAN
 Version: 1.1.0
 Hash: bc4e54014c2049f2605ad0c3ba0cce6b
 Requires: assertthat, crayon
+
+Package: clipr
+Source: CRAN
+Version: 0.5.0
+Hash: 9d588163f9234a17c6ad03d148db999d
+
+Package: clisymbols
+Source: CRAN
+Version: 1.2.0
+Hash: a76a309884277a4fd8a5d741965fbef5
 
 Package: colorspace
 Source: CRAN
@@ -117,6 +133,20 @@ Version: 1.3.0
 Hash: b42cd2910f0494b711ee5ef5fe2a71c2
 Requires: DBI, R6, assertthat, dplyr, glue, purrr, rlang, tibble,
     tidyselect
+
+Package: desc
+Source: CRAN
+Version: 1.2.0
+Hash: a0a3ca939997679a52816bae4ed6aaae
+Requires: R6, assertthat, crayon, rprojroot
+
+Package: devtools
+Source: CRAN
+Version: 2.0.2
+Hash: 9d0d6e31d44ffe876c3328fc444ae787
+Requires: callr, cli, digest, git2r, httr, jsonlite, memoise, pkgbuild,
+    pkgload, rcmdcheck, remotes, rstudioapi, sessioninfo, usethis,
+    withr
 
 Package: digest
 Source: CRAN
@@ -162,12 +192,38 @@ Source: CRAN
 Version: 0.0.2
 Hash: 4aaf002dd434e8c854611c5d11a1d58e
 
+Package: geospark
+Source: github
+Version: 0.0.2
+Hash: 29068f540a8c75150960a017a8dac70f
+Requires: sparklyr
+GithubRepo: geospark
+GithubUsername: harryprince
+GithubRef: master
+GithubSha1: 709065b4c5cc78622e363a31da524997ddf81105
+RemoteHost: api.github.com
+RemoteRepo: geospark
+RemoteUsername: harryprince
+RemoteRef: master
+RemoteSha: 709065b4c5cc78622e363a31da524997ddf81105
+
 Package: ggplot2
 Source: CRAN
 Version: 3.1.1
 Hash: 19338161a643b33ae5843574ecf0edd1
 Requires: digest, gtable, lazyeval, plyr, reshape2, rlang, scales,
     tibble, viridisLite, withr
+
+Package: gh
+Source: CRAN
+Version: 1.0.1
+Hash: 3f8812accd1320227d744bca620e8c42
+Requires: httr, ini, jsonlite
+
+Package: git2r
+Source: CRAN
+Version: 0.25.2
+Hash: 95c91baea310d669c023627b454b5887
 
 Package: glue
 Source: CRAN
@@ -202,6 +258,11 @@ Version: 1.4.0
 Hash: 62d62d3ffcc9a34411b6e35a813f72dd
 Requires: R6, curl, jsonlite, mime, openssl
 
+Package: ini
+Source: CRAN
+Version: 0.3.1
+Hash: 9d6de5178c1cedabfb24e7d2acc9a092
+
 Package: jsonlite
 Source: CRAN
 Version: 1.6
@@ -233,6 +294,12 @@ Source: CRAN
 Version: 0.9
 Hash: 730f688930cef3223d59bd8aef679ab9
 Requires: mime
+
+Package: memoise
+Source: CRAN
+Version: 1.1.0
+Hash: 410fcd334bc626db100237cc1370f2e9
+Requires: digest
 
 Package: mime
 Source: CRAN
@@ -268,10 +335,22 @@ Version: 1.3.1
 Hash: 9ed4c2a5d3047bfba3e852ad5e806d91
 Requires: cli, crayon, fansi, rlang, utf8
 
+Package: pkgbuild
+Source: CRAN
+Version: 1.0.3
+Hash: 9e6684b6946aa7199348754fb6da94ce
+Requires: R6, callr, cli, crayon, desc, prettyunits, rprojroot, withr
+
 Package: pkgconfig
 Source: CRAN
 Version: 2.0.2
 Hash: b0fd6ed908e150b77e5f00c6478bd58c
+
+Package: pkgload
+Source: CRAN
+Version: 1.0.2
+Hash: 41eb2db35be61f6f9e8864cf87a1ecb0
+Requires: desc, pkgbuild, rlang, rprojroot, rstudioapi, withr
 
 Package: plogr
 Source: CRAN
@@ -283,6 +362,23 @@ Source: CRAN
 Version: 1.8.4
 Hash: 0ff259c7e21ac20a124869520e209d9f
 Requires: Rcpp
+
+Package: prettyunits
+Source: CRAN
+Version: 1.0.2
+Hash: 49286102a855640daaa38eafe8b1ec30
+Requires: assertthat, magrittr
+
+Package: processx
+Source: CRAN
+Version: 3.3.0
+Hash: 89c6047da2d7dfad11bedd624252d78a
+Requires: R6, ps
+
+Package: ps
+Source: CRAN
+Version: 1.3.0
+Hash: 1d4cae95887ffe5b1a22bea5994476cd
 
 Package: purrr
 Source: CRAN
@@ -300,6 +396,13 @@ Package: rappdirs
 Source: CRAN
 Version: 0.3.1
 Hash: 7340cfebc77ad7b107a549a8635e64dd
+
+Package: rcmdcheck
+Source: CRAN
+Version: 1.3.2
+Hash: 162a63e909423b7c5f44c30711135481
+Requires: R6, callr, cli, crayon, desc, digest, pkgbuild, prettyunits,
+    rprojroot, sessioninfo, withr, xopen
 
 Package: remotes
 Source: CRAN
@@ -340,6 +443,12 @@ Source: CRAN
 Version: 1.0.0
 Hash: f1b117e6daa2bdfa11cc671133d8bdd4
 Requires: R6, RColorBrewer, Rcpp, labeling, munsell, viridisLite
+
+Package: sessioninfo
+Source: CRAN
+Version: 1.1.1
+Hash: 9e50c8458e611f166ba702277cbb5096
+Requires: cli, withr
 
 Package: sparklyr
 Source: CRAN
@@ -390,6 +499,13 @@ Version: 0.11
 Hash: bcda6d10711135ce9ec0243bd2fb9d6c
 Requires: xfun
 
+Package: usethis
+Source: CRAN
+Version: 1.5.0
+Hash: 56dfac7b823f31dede3b13a256d4e6f1
+Requires: clipr, clisymbols, crayon, curl, desc, fs, gh, git2r, glue,
+    purrr, rlang, rprojroot, rstudioapi, whisker, withr, yaml
+
 Package: utf8
 Source: CRAN
 Version: 1.1.4
@@ -406,6 +522,11 @@ Source: CRAN
 Version: 0.3.0
 Hash: 78bb072c4f9e729a283d4c40ec93f9c6
 
+Package: whisker
+Source: CRAN
+Version: 0.3-2
+Hash: 803d662762e532705c2c066a82d066e7
+
 Package: withr
 Source: CRAN
 Version: 2.1.2
@@ -421,6 +542,12 @@ Source: CRAN
 Version: 1.2.0
 Hash: 6e643a368e9748966b96332eaa631411
 Requires: Rcpp
+
+Package: xopen
+Source: CRAN
+Version: 1.0.0
+Hash: 22c2708f177f9fd9f8a52012bac61d6a
+Requires: processx
 
 Package: yaml
 Source: CRAN

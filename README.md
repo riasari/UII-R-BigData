@@ -14,8 +14,7 @@ Content:
 	- [scala UDF](course-content/3_scala_udf.Rmd)
 	- [distributed ML](course-content/4_machine_learning.Rmd)
 	- [applications geospatial](course-content/5_applications_geospatial.Rmd)
-	- [applications genomics](course-content/6_applications_genomics.Rmd)
-	- [streaming and shiny](course-content/7_streaming_shiny.Rmd)
+	- [streaming and shiny](course-content/6_streaming_shiny.Rmd)
 - workshop
 - [faculty talk](https://docs.google.com/presentation/d/1RBh-fe3DnwvgAzZ4xiovzKrrn811abraUIlJlX3TFms/edit?usp=sharing)
 
