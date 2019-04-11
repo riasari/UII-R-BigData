@@ -26,13 +26,6 @@ sf
 install.packages("sf")
 ```
 
-dplyr needs a more current release than CRAN
-```{r eval=FALSE, include=TRUE}
-devtools::install_github("tidyverse/dplyr")
-devtools::install_github("tidyverse/dbplyr")
-```
-
-
 geospark 
 
 ```{r eval=FALSE, include=TRUE}
@@ -43,17 +36,19 @@ Then instanciate your spark session. But add additional configuration to use the
 ```{r}
 library(sparklyr)
 library(geospark)
-
 library(dplyr)
 library(ggplot2)
-library(arrow)
+#library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
-
+#conf$`spark.sql.crossJoin.enabled` <- "true"
 # Enable kryo to decrease serialization overhead
 conf$spark.serializer <- "org.apache.spark.serializer.KryoSerializer"
 conf$spark.kryo.registrator <- "org.datasyslab.geospark.serde.GeoSparkKryoRegistrator"
 
+# currently, only spark 2.3.x works. Let's get an older version. 
+# spark_available_versions()
+# spark_install(version = "2.3.2")
 spark <- spark_connect(master = "local", config = conf)
 register_gis(spark)
 ```
@@ -72,6 +67,8 @@ points_wkt <- copy_to(spark, points)
 
 A quick visualization of the geometries:
 ```{r}
+library(sf)
+library(mapview)
 M1 = polygons %>%
 sf::st_as_sf(wkt="geom") %>% mapview::mapview()
 
@@ -91,6 +88,18 @@ Now we can perform a GeoSpatial join using the st_contains which converts wkt in
 ```{r}
 polygons_wkt <- mutate(polygons_wkt, poly = st_geomfromwkt(geom, "4326"))
 points_wkt <- mutate(points_wkt, point = st_geomfromwkt(geom, "4326"))
+
+res = full_join(polygons_wkt %>% 
+                        mutate(x = st_geomfromwkt(geom)) %>%
+                        mutate(dummy_s4pu629cnd=TRUE) %>% 
+                        compute("x"),
+               points_wkt %>% 
+                        mutate(y = st_geomfromwkt(geom)) %>% 
+                        mutate(dummy_s4pu629cnd=TRUE) %>% 
+                        compute("y"),
+          by = "dummy_s4pu629cnd") %>%
+    filter(sql("st_contains(x,y)")) %>% 
+    select(-dummy_s4pu629cnd) 
 
 sc_res = inner_join(polygons_wkt, points_wkt, by = sql("st_contains(poly, point)")) %>% 
   group_by(area, state) %>%

@@ -123,8 +123,7 @@ But it get's more interesting with UADF (user defined aggregate functions)
 Assume you have a big data set and for each group you want to compute an aggregation. In general this is rather easy via sparklyr or the SQL API for standard SQL aggregations (mean,sum,count).
 However, when you want to fit a model, i.e. a more complex and non standard aggregation it gets a bit more complicated.
 If you were using native (java, scala) spark you could write a custom UADF. This is not possible from R.
-sparkR however offers `gapply` to handle working with groups. 
-Recently, sparklyr introduced `sapply` which also can operate on grouped datasets which easily allows to scale out computation i.e. paralellize it per each group.
+sparkR offers `spark_apply` to handle working with groups which easily allows to scale out computation i.e. paralellize it per each group.
 
 Compute a linear model for the iris dataset for each group of species:
 ```{r}
@@ -152,7 +151,26 @@ To use R packages inside Spark, your packages must be installed on the worker no
 ## Reading JSON
 
 Find some JSON files and load them into spark.
-Examine the schema.
+Examine the (nested) schema.
+```{r}
+my_json <- spark_read_json(spark, "datasets/json_sample")
+my_json %>%
+  head
+
+library(sparklyr.nested)
+my_json %>%
+  sdf_schema_viewer()
+
+my_json %>%
+  select(email, name) %>%
+  sdf_schema_viewer()
+
+my_json %>%
+  sdf_unnest(friends) %>%
+  #sdf_unnest(name) %>%
+  sdf_schema_viewer()
+```
+
 
 ## cleanup
 

@@ -18,3 +18,4 @@ course-content/datasets/flights
 course-content/checkpoints
 course-content/streaming_destination
 course-content/streaming_source
+event-schema-generator.parquet

@@ -347,7 +347,7 @@ But now we would like to calculate the delay per carrier and not in total. This 
 delayPerCarrier <- flights %>%
     group_by(carrier) %>%
   summarise(mean_dep_delay = mean(dep_delay), 
-            data=sort_collect_set(dep_delay)) # note also less common aggregate functions are available
+            data=sort_array(collect_set(dep_delay))) # note also less common aggregate functions are available
 delayPerCarrier
 ```
 
@@ -386,7 +386,7 @@ From time to time instead of using window functions which might require quite so
 Unfortunately, sparklyR does not yet support this kind of query well. https://github.com/rstudio/sparklyr/issues/1773 but this allows to demonstrate how to run a raw SQL query against a data frame.
 
 ```{r}
-delayPerCarrier %>% 
+delayPerCarrierTransformed <- delayPerCarrier %>% 
   ft_sql_transformer("
     SELECT carrier,
            mean_dep_delay,
@@ -394,6 +394,10 @@ delayPerCarrier %>%
            TRANSFORM(data, element -> element +1) AS data_plus,
            FILTER(data, element -> element <5) AS filtered_data
     FROM   __THIS__")
+delayPerCarrierTransformed
+
+# library(sparklyr.nested)
+# delayPerCarrierTransformed %>% sdf_explode(data_plus)
 ```
 
 > WARN TODO  fix this function, output does not make sense. https://github.com/rstudio/sparklyr/issues/1773
