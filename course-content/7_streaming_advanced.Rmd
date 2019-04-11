@@ -73,6 +73,8 @@ As of Spark 2.3 also Stream-stream and not only stream-static joins are availabl
 
 ### Example
 
+TODO  test data generation in https://www.confluent.io/blog/easy-ways-generate-test-data-kafka
+
 The following is based on https://dzone.com/articles/topology-based-event-correlation-with-apache-spark
 
 ```{bash}
