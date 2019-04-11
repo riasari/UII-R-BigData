@@ -22,13 +22,12 @@ The following is based on https://spark.rstudio.com/guides/streaming/
 ## Reading from a stream
 
 In a shell type
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 nc -lk 9999
 Hello
 World
 Foo Bar
 bbaz
-...
 ```
 
 Then start the streaming process

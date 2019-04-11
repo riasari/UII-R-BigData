@@ -181,7 +181,7 @@ pagecountsAllDF %>%
 
 If you want to execute plain SQL this is also really easy:
 
-```{sql connection=spark}
+```{sql connection=spark, eval=FALSE, include=TRUE}
 SELECT * FROM wikimedia_edits LIMIT 2
 ```
 Also, if you want to store the result of the query into a dataframe to continue using it later on in the analytical process:

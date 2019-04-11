@@ -23,12 +23,12 @@ spark <- spark_connect(master = "local", config = conf)
 
 start kafka
 
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 docker-compose up
 ```
 
 Now open two terminals. The first one (writer):
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 kafkacat -P -b localhost:9092 -t topic1
 #starts producer
 
@@ -39,7 +39,7 @@ write some more text
 foo
 ```
 The second one (reader):
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 kafkacat -C -b localhost:9092 -t topic1
 #starts listener
 # you shold see some output when typing in terminal 1
@@ -77,7 +77,7 @@ TODO  test data generation in https://www.confluent.io/blog/easy-ways-generate-t
 
 The following is based on https://dzone.com/articles/topology-based-event-correlation-with-apache-spark
 
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 git clone git@github.com:tashoyan/telecom-streaming.git
 
 # prerequesite: mvn installed
@@ -128,7 +128,7 @@ spark_disconnect(spark)
 
 clean docker things
 
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 docker-compose rm -f
 docker images
 # docker system prune
