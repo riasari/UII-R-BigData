@@ -25,7 +25,7 @@ ls "$input_dir"/../
 
 export jar_file="telecom-streaming/generator/target/generator-1.1.0-SNAPSHOT.jar"
 
-spark-2.4.1-bin-without-hadoop-scala-2.12/bin/spark-submit \
+custom-spark/bin/spark-submit \
 --name "event_generator" \
 --master 'local[4]' \
 --conf spark.driver.memory=5g \

@@ -88,8 +88,9 @@ export MAVEN_OPTS="-Xmx2g -XX:ReservedCodeCacheSize=512m"
 git clone git@github.com:apache/spark.git
 cd spark
 git checkout v2.4.1
-./dev/make-distribution.sh --name custom-spark --tgz -Psparkr -Phadoop-2.7 -Phive -Phive-thriftserver -Pyarn
+./dev/make-distribution.sh --name custom-spark --tgz -Psparkr -Phadoop-2.7 -Phive -Phive-thriftserver -Pyarn -DskipTests -P scala-2.12
 cd ..
+# TODO move, unzip, ...
 rm -rf spark
 
 # hack create kafka topics in different terminals
