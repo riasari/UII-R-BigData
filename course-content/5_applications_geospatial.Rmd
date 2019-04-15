@@ -46,9 +46,6 @@ conf$`sparklyr.shell.driver-memory` <- "8G"
 conf$spark.serializer <- "org.apache.spark.serializer.KryoSerializer"
 conf$spark.kryo.registrator <- "org.datasyslab.geospark.serde.GeoSparkKryoRegistrator"
 
-# currently, only spark 2.3.x works. Let's get an older version. 
-# spark_available_versions()
-# spark_install(version = "2.3.2")
 spark <- spark_connect(master = "local", config = conf)
 register_gis(spark)
 ```
@@ -86,28 +83,34 @@ Now we can perform a GeoSpatial join using the st_contains which converts wkt in
 > TODO fails https://github.com/harryprince/geospark/issues/9
 
 ```{r}
-polygons_wkt <- mutate(polygons_wkt, poly = st_geomfromwkt(geom, "4326"))
-points_wkt <- mutate(points_wkt, point = st_geomfromwkt(geom, "4326"))
+polygons_wkt <- mutate(polygons_wkt, y = st_geomfromwkt(geom))
+points_wkt <- mutate(points_wkt, x = st_geomfromwkt(geom))
+points_wkt # y is here
+polygons_wkt # x is here
 
-res = full_join(polygons_wkt %>% 
-                        mutate(x = st_geomfromwkt(geom)) %>%
-                        mutate(dummy_s4pu629cnd=TRUE) %>% 
-                        compute("x"),
-               points_wkt %>% 
-                        mutate(y = st_geomfromwkt(geom)) %>% 
-                        mutate(dummy_s4pu629cnd=TRUE) %>% 
-                        compute("y"),
-          by = "dummy_s4pu629cnd") %>%
-    filter(sql("st_contains(x,y)")) %>% 
-    select(-dummy_s4pu629cnd) 
-
-sc_res = inner_join(polygons_wkt, points_wkt, by = sql("st_contains(poly, point)")) %>% 
+sc_res <- st_join(polygons_wkt,
+                  points_wkt,
+                  join = sql("st_contains(y,x)")) %>% 
   group_by(area, state) %>%
-  summarise(cnt = n())
-  
+  summarise(cnt = n()) 
+
 sc_res %>%
-  head()
+  head
 ```
+
+
+Let's look at the data in an interactive map:
+```{r}
+Idx_df = collect(sc_res) %>% 
+right_join(polygons,by = (c("area"="area"))) %>% 
+sf::st_as_sf(wkt="geom")
+
+Idx_df %>% 
+leaflet::leaflet() %>% 
+leaflet::addTiles() %>% 
+leaflet::addPolygons(popup = ~as.character(cnt),color=~colormap::colormap_pal()(cnt)) 
+```
+
 
 ## cleanup
 

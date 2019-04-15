@@ -77,6 +77,9 @@ TODO  test data generation in https://www.confluent.io/blog/easy-ways-generate-t
 
 The following is based on https://dzone.com/articles/topology-based-event-correlation-with-apache-spark
 
+TODO other example test data from wiki
+https://www.matthowlett.com/2017-12-23-exploring-wikipedia-ksql.html
+
 ```{bash, eval=FALSE, include=TRUE}
 git clone git@github.com:tashoyan/telecom-streaming.git
 

@@ -46,6 +46,13 @@ stream_stop(write_output) # cleanup
 ```
 
 What happened:
+Spark operates in micro batches
+![structured streaming microbatch](img/mb-green.png)
+![structured streaming microbatch fail](img/mb-red.png)
+it is important that each batch finishes befor the next one needs to be processed to be stable:
+![structured streaming microbatch mb stable](img/building-robust-adaptive-streaming-apps-with-spark-streaming-11-638.jpg)
+
+Spark Structured Streaming adds a declarative layer on top and allows you to think about unbounded tables.
 Incoming data get's appended to an unbounded table.
 ![structured streaming unbounded table](img/unbounded_table.png)
 A query on the input will generate the “Result Table”. Every trigger interval (for sparklyR by default 5 seconds, `stream_trigger_interval()` to change it ), a new rows get appended to the Input Table, which eventually updates the Result Table. Whenever the result table gets updated, we would want to write the changed result rows to an external sink.

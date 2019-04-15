@@ -277,7 +277,7 @@ In the Hadoop world, this commonly is referred to partition pruning. When queryi
 
 See the result in our case:
 
-```{bash}
+```{bash, eval=FALSE, include=TRUE}
 ls datasets/flights
 ```
 
