@@ -88,9 +88,8 @@ points_wkt <- mutate(points_wkt, x = st_geomfromwkt(geom))
 points_wkt # y is here
 polygons_wkt # x is here
 
-sc_res <- st_join(polygons_wkt,
-                  points_wkt,
-                  join = sql("st_contains(y,x)")) %>% 
+sc_res <- st_join(polygons_wkt %>% select(area,y),
+                  points_wkt %>% select(city,state,x), join = sql("st_contains(y,x)")) %>%
   group_by(area, state) %>%
   summarise(cnt = n()) 
 
