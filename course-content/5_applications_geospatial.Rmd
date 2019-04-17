@@ -94,6 +94,8 @@ sc_res <- st_join(polygons_wkt %>% select(area,y),
   summarise(cnt = n()) 
 
 sc_res %>%
+  show_query()
+sc_res %>%
   head
 ```
 
@@ -119,10 +121,29 @@ Why is this bad? IT will not scale, as catalyst optimizations are not used to im
 
 What can we do if `dbplyr` does not support the right functions or generates the wrong SQL statements?
 
+We can hand code the SQL. 
+
+For this to work the dataframes need to be registered as temporary tables.
+Fortunately, they are already registered. 
+However, not with the transformation for the geometries:
+
 ```{r}
-#> TODO https://github.com/harryprince/geospark/issues/9
+sdf_sql(spark, "SELECT * FROM points LIMIT 2")
+sdf_sql(spark, "SELECT * FROM polygons LIMIT 2")
+
+sdf_sql(spark, "SELECT * FROM points a, polygons b WHERE ST_Intersects(b.geom, a.geom)") ## 
+```
+Fails, as the geometries are still plain strings / coordinates and not geometry objects.
+You can re-register them using: `sparklyr::sdf_register(sdf, "tbl_name")`
+
+```{r}
+sdf_register(points_wkt, "points_wkt")
+sdf_register(polygons_wkt, "polygons_wkt")
 ```
 
+```{r}
+sdf_sql(spark, "SELECT * FROM points_wkt a, polygons_wkt b WHERE ST_Intersects(b.geom, a.geom)") ## 
+```
 
 ## cleanup
 
