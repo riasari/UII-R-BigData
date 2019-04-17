@@ -110,6 +110,19 @@ leaflet::addTiles() %>%
 leaflet::addPolygons(popup = ~as.character(cnt),color=~colormap::colormap_pal()(cnt)) 
 ```
 
+Look again at the details in spark:
+![actual join](img/sort-join.png)
+Instead of the desired join above, spark actually executes:
+![desired join](img/range-join.png)
+
+Why is this bad? IT will not scale, as catalyst optimizations are not used to improve upon $O(n^2)$.
+
+What can we do if `dbplyr` does not support the right functions or generates the wrong SQL statements?
+
+```{r}
+#> TODO https://github.com/harryprince/geospark/issues/9
+```
+
 
 ## cleanup
 

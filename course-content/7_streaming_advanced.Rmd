@@ -70,6 +70,14 @@ As of Spark 2.3 also Stream-stream and not only stream-static joins are availabl
 - run once https://databricks.com/blog/2017/05/22/running-streaming-jobs-day-10x-cost-savings.ht
 - continous
 
+### Basics in R
+
+> NOTE: this is still rather experimental and not well supported in the `dbplyr` tooling. Falling back to executing textual `SQL` is required for now. See https://github.com/rstudio/sparklyr/issues/1977 for details.
+
+```{r}
+
+```
+
 
 ### Example
 
