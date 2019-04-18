@@ -7,6 +7,7 @@ Load spark
 ```{r}
 library(sparklyr)
 library(dplyr)
+library(future)
 # library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
@@ -15,38 +16,32 @@ conf$spark.serializer <- "org.apache.spark.serializer.KryoSerializer"
 spark <- spark_connect(master = "local", config = conf)
 ```
 
-## introduction to kafka
-- distributed mesage queue
-- highly scalable
+## generate some dummy data
 
-> Docker required! As well as kafkacat. On a mac simply install with brew install kafkacat, or for linux look at https://github.com/edenhill/kafkacat
+```{r}
+source <- "streaming_source"
+destination <- "streaming_destination"
+if(file.exists(source)) unlink(source, TRUE)
+if(file.exists(destination)) unlink(destination, TRUE)
 
-start kafka
 
-```{bash, eval=FALSE, include=TRUE}
-docker-compose up
+lenght_df <- 1000
+dates <- base::sample(seq(as.Date('2018-01-01'), as.Date('2019-06-01'), by="day"), replace = TRUE, lenght_df)
+values <- rnorm(lenght_df)
+
+event_category <- base::sample(c("regular", "error", "security_alert"), lenght_df, replace = TRUE)
+sampling_df <- data.frame(values, dates, event_category)
+sampling_df <- sampling_df %>%
+  rename(timestamp = dates) %>%
+  rename(category = event_category) %>%
+  rename(value = values)
+head(sampling_df)
+
+stream_generate_test(df = sampling_df, iterations = 1, path = source)
 ```
 
-Now open two terminals. The first one (writer):
-```{bash, eval=FALSE, include=TRUE}
-kafkacat -P -b localhost:9092 -t topic1
-#starts producer
 
-Hello Kafka
-this is spark
-...
-write some more text
-foo
-```
-The second one (reader):
-```{bash, eval=FALSE, include=TRUE}
-kafkacat -C -b localhost:9092 -t topic1
-#starts listener
-# you shold see some output when typing in terminal 1
-```
-
-## Theory
-### Window Operations on Event Time
+## Window Operations on Event Time
 
 Aggregations over a sliding event-time window are straightforward with Structured Streaming and are very similar to grouped aggregations.
 
@@ -56,12 +51,47 @@ However, to run this query for days, it’s necessary for the system to bound th
 In R `stream_watermark(df, column="timestamp", threshold="10 minutes")` enables Watermarking.
 
 
-
 ![watermarking](img/structured-streaming-watermark-update-mode.png)
+
+`window(timestamp,  "7 days", "3 days")` defines a sliding window over the timestamp column which has a size of 7 days and and slides over every 3 days.
+
+```{r}
+read_folder <- stream_read_csv(spark, source) 
+
+process_stream <- read_folder %>%
+  stream_watermark(column="timestamp", threshold="14 days") %>% 
+  group_by(time_window = window(timestamp,  "7 days", "3 days"), category) %>%
+  summarise(
+    mean = mean(value, na.rm = TRUE),
+    count = n()
+  ) %>%
+  sdf_separate_column("time_window", into=c("beginning", "end")) %>%
+  select(-time_window) %>%
+  arrange(desc(count))
+
+my_table <- "stream"
+write_output <- stream_write_memory(process_stream, name = my_table)
+##########################################
+tbl(spark, my_table)  # run once
+##########################################
+
+invisible(future(stream_generate_test(df = sampling_df, interval = 0.2, iterations = 100, path = source)))
+
+##########################################
+tbl(spark, my_table)  # execute repeatedly
+##########################################
+#stream_view(write_output)
+```
 
 ### JOINs
 
 As of Spark 2.3 also Stream-stream and not only stream-static joins are available.
+
+> NOTE: this is still rather experimental and not well supported in the `dbplyr` tooling. Falling back to executing textual `SQL` is required for now. See https://github.com/rstudio/sparklyr/issues/1977 for details.
+
+```{r}
+
+```
 
 ### Triggers
 
@@ -70,65 +100,14 @@ As of Spark 2.3 also Stream-stream and not only stream-static joins are availabl
 - run once https://databricks.com/blog/2017/05/22/running-streaming-jobs-day-10x-cost-savings.ht
 - continous
 
-### Basics in R
-
-> NOTE: this is still rather experimental and not well supported in the `dbplyr` tooling. Falling back to executing textual `SQL` is required for now. See https://github.com/rstudio/sparklyr/issues/1977 for details.
-
 ```{r}
-
+stream_trigger_interval()
 ```
-
-
-### Example
-
-TODO  test data generation in https://www.confluent.io/blog/easy-ways-generate-test-data-kafka
-
-The following is based on https://dzone.com/articles/topology-based-event-correlation-with-apache-spark
-
-TODO other example test data from wiki
-https://www.matthowlett.com/2017-12-23-exploring-wikipedia-ksql.html
-
-```{bash, eval=FALSE, include=TRUE}
-git clone git@github.com:tashoyan/telecom-streaming.git
-
-# prerequesite: mvn installed
-cd telecom-streaming
-mvn clean package
-cd ..
-###########################
-# to download a scala 2.12 compatible version of spark we need to build from source
-export MAVEN_OPTS="-Xmx2g -XX:ReservedCodeCacheSize=512m"
-git clone git@github.com:apache/spark.git
-cd spark
-git checkout v2.4.1
-./dev/make-distribution.sh --name custom-spark --tgz -Psparkr -Phadoop-2.7 -Phive -Phive-thriftserver -Pyarn -DskipTests -P scala-2.12
-cd ..
-# TODO move, unzip, ...
-rm -rf spark
-
-# hack create kafka topics in different terminals
-kafkacat -P -b localhost:9092 -t events
-kafkacat -P -b localhost:9092 -t alarms
-kafkacat -C -b localhost:9092 -t events
-kafkacat -C -b localhost:9092 -t alarms
-
-# now run by hand line for line
-in file: ./telecom-streaming-r/bin/event-generator.sh
-```
-
-```{r}
-stream_trigger_interval
-
-stream_watermark
-```
-
 
 Finally cleanup / stop butting in RStudio:
 ```{r}
-stream_view(write_output)
 stream_stop(write_output) # cleanup
 ```
-
 
 ## cleanup
 
@@ -136,12 +115,3 @@ Finally, close the spark session again.
 ```{r}
 spark_disconnect(spark)
 ```
-
-clean docker things
-
-```{bash, eval=FALSE, include=TRUE}
-docker-compose rm -f
-docker images
-# docker system prune
-```
-
