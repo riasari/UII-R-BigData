@@ -48,12 +48,12 @@ Aggregations over a sliding event-time window are straightforward with Structure
 ![illustration of above query](img/structured-streaming-window.png)
 
 However, to run this query for days, it’s necessary for the system to bound the amount of intermediate in-memory state it accumulates. Watermarking has been introduced just for this.
-In R `stream_watermark(df, column="timestamp", threshold="10 minutes")` enables Watermarking.
+In R `stream_watermark(df, column="timestamp", threshold="14 days")` enables Watermarking.
 
 
 ![watermarking](img/structured-streaming-watermark-update-mode.png)
 
-`window(timestamp,  "7 days", "3 days")` defines a sliding window over the timestamp column which has a size of 7 days and and slides over every 3 days.
+`window(timestamp,  "7 days", "3 days")` defines a sliding window over the timestamp column which has a size of 7 days (any data later than the watermark (14-days) is dropped, within this time, the window is updated) and and slides over every 3 days.
 
 ```{r}
 read_folder <- stream_read_csv(spark, source) 
@@ -83,14 +83,81 @@ tbl(spark, my_table)  # execute repeatedly
 #stream_view(write_output)
 ```
 
-### JOINs
+### stream-stream JOINs
 
 As of Spark 2.3 also Stream-stream and not only stream-static joins are available.
 
 > NOTE: this is still rather experimental and not well supported in the `dbplyr` tooling. Falling back to executing textual `SQL` is required for now. See https://github.com/rstudio/sparklyr/issues/1977 for details.
 
-```{r}
+#### sample data generation
 
+```{r}
+source_1 <- "streaming_source"
+destination_1 <- "streaming_destination"
+source_2 <- "streaming_source_2"
+destination_2 <- "streaming_destination_2"
+if(file.exists(source_1)) unlink(source_1, TRUE)
+if(file.exists(destination_1)) unlink(destination_1, TRUE)
+if(file.exists(source_2)) unlink(source_2, TRUE)
+if(file.exists(destination_2)) unlink(destination_2, TRUE)
+
+######################### first stream #############
+lenght_df <- 1000
+dates <- base::sample(seq(as.Date('2018-01-01'), as.Date('2019-06-01'), by="day"), replace = TRUE, lenght_df)
+values <- rnorm(lenght_df)
+event_category <- base::sample(c("regular", "error", "security_alert"), lenght_df, replace = TRUE)
+sampling_df <- data.frame(values, dates, event_category)
+sampling_df <- sampling_df %>%
+  rename(timestamp = dates) %>%
+  rename(category = event_category) %>%
+  rename(value = values)
+head(sampling_df)
+
+stream_generate_test(df = sampling_df, iterations = 1, path = source_1)
+
+######################### second stream #############
+dates <- base::sample(seq(as.Date('2018-01-01'), as.Date('2019-06-01'), by="day"), replace = TRUE, lenght_df)
+second_values <- rnorm(lenght_df)
+second_category <- base::sample(c("regular", "error", "security_alert"), lenght_df, replace = TRUE)
+sampling_df_2 <- data.frame(second_values, dates, second_category)
+sampling_df_2 <- sampling_df_2 %>%
+  rename(timestamp = dates)
+head(sampling_df_2)
+
+stream_generate_test(df = sampling_df_2, iterations = 1, path = source_2)
+```
+
+join execution
+
+> TODO figure it out: https://github.com/rstudio/sparklyr/issues/1977
+
+```{r}
+read_folder_1 <- stream_read_csv(spark, source_1) %>%
+  stream_watermark(column="timestamp", threshold="17 days")
+read_folder_2 <- stream_read_csv(spark, source_2)%>%
+  stream_watermark(column="timestamp", threshold="7 days")
+
+# TODO how to add time windows into JOIN?
+#expr("""
+#    clickAdId = impressionAdId AND
+#    clickTime >= impressionTime AND
+#    clickTime <= impressionTime + interval 1 hour
+#    """)
+joined_streams <- read_folder_1 %>% left_join(read_folder_2, by = c("category"= "second_category"))
+
+my_table <- "stream"
+stream_write_memory(joined_streams, name = my_table)
+
+# ERROR
+# Stream-stream outer join between two streaming DataFrame/Datasets is not supported without a watermark in the join keys, or a watermark on the nullable side and an appropriate range condition
+# Why is watermark not defined?
+tbl(spark, my_table)  # execute repeatedly
+
+################# TODO add time window into join and watermarks
+invisible(future(stream_generate_test(df = sampling_df_1, interval = 0.2, iterations = 100, path = source_1)))
+invisible(future(stream_generate_test(df = sampling_df_2, interval = 0.5, iterations = 200, path = source_2)))
+
+tbl(spark, my_table)  # execute repeatedly
 ```
 
 ### Triggers
@@ -98,11 +165,13 @@ As of Spark 2.3 also Stream-stream and not only stream-static joins are availabl
 - unspecified. Generates a new microbatch after the last one has finished.
 - fixed micro batches, in R `stream_trigger_interval`
 - run once https://databricks.com/blog/2017/05/22/running-streaming-jobs-day-10x-cost-savings.ht
-- continous
+- continous (alpha)
 
 ```{r}
-stream_trigger_interval()
+stream_trigger_interval(interval = 1000)  # fixed execution interval in milliseconds.
 ```
+Any other trigger s (run-once, continous) seem to not be supported yet by the R interfaces to spark.
+
 
 Finally cleanup / stop butting in RStudio:
 ```{r}
