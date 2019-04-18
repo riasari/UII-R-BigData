@@ -1,6 +1,8 @@
 ---
 title: "Applications - Geospatial (experimental)"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 When working with geospatial data in R the $sf$ package usually is a great tool.
@@ -41,7 +43,7 @@ library(ggplot2)
 #library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
-#conf$`spark.sql.crossJoin.enabled` <- "true"
+
 # Enable kryo to decrease serialization overhead
 conf$spark.serializer <- "org.apache.spark.serializer.KryoSerializer"
 conf$spark.kryo.registrator <- "org.datasyslab.geospark.serde.GeoSparkKryoRegistrator"
@@ -144,6 +146,33 @@ sdf_register(polygons_wkt, "polygons_wkt")
 ```{r}
 sdf_sql(spark, "SELECT * FROM points_wkt a, polygons_wkt b WHERE ST_Intersects(b.geom, a.geom)") ## 
 ```
+Also fails, as the geoemtry types are (strangely) not yet parsed.
+
+But:
+```{r}
+points_wkt %>%
+  rename(point_geom = geom) %>%
+  sdf_register("point_geom")
+
+
+sdf_sql(spark, "SELECT * FROM point_geom, polygons WHERE ST_Intersects(ST_geomFromWKT(geom), ST_geomFromWKT(point_geom))")
+```
+
+works but in my opinion is not as nice as it should be so:
+```{r}
+mutate(polygons_wkt, y = st_geomfromwkt(geom)) %>%
+  select(-geom)%>%
+  sdf_register("poly_geometry")
+mutate(points_wkt, x = st_geomfromwkt(geom)) %>%
+  select(-geom) %>%
+  sdf_register("point_geometry")
+
+sdf_sql(spark, "SELECT * FROM poly_geometry, point_geometry WHERE ST_Intersects(y, x)")
+```
+
+Is the code which actually works as expected for an R user's perspective and only calls out to SQL where absolutely required.
+
+> Discussion to improve the package is ongoging at https://github.com/rstudio/sparklyr/issues/1977 maybe at a later point in time writing the SQL code is no longer required.
 
 ## cleanup
 
