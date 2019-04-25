@@ -2,7 +2,8 @@
 
 Course content for the R and Big Data class 2019 at UII.
 
-Content:
+Content (launch online in RStudio: [![Binder](http://mybinder.org/badge_logo.svg)](http://mybinder.org/v2/gh/lecturing/UII-R-BigData/master?urlpath=rstudio)
+):
 
 - course R and Big Data
 	- [course introduction](https://docs.google.com/presentation/d/1Janow5MBlnGeDYByCfscHlnpRBeZad_F7ZpRWOiCjRM/edit?usp=sharing)
@@ -21,3 +22,4 @@ Content:
 
 ## useful tools for the presentation:
 - https://doitlive.readthedocs.io/en/stable/
+- https://undraw.co/
