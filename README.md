@@ -17,6 +17,9 @@ Content (launch online in RStudio: [![Binder](http://mybinder.org/badge_logo.svg
 	- [applications geospatial](course-content/5_applications_geospatial.Rmd)
 	- [streaming and shiny](course-content/6_streaming_shiny.Rmd)
 	- [streaming advanced (sliding windows, joins)](course-content/7_streaming_advanced.Rmd)
+	- project 1
+	  - setting up a database in docker
+	  - connecting with spark to it and reading data
 - workshop
 - [faculty talk](https://docs.google.com/presentation/d/1RBh-fe3DnwvgAzZ4xiovzKrrn811abraUIlJlX3TFms/edit?usp=sharing)
 
