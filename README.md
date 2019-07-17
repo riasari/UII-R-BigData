@@ -20,6 +20,8 @@ Content (launch online in RStudio: [![Binder](http://mybinder.org/badge_logo.svg
 	- project 1
 	  - setting up a database in docker
 	  - connecting with spark to it and reading data
+	- project 2
+	  - https://medium.com/@dawid.rutowicz/cleanframes-data-cleansing-library-for-apache-spark-eaae526ee958 take a dataset of your choice
 - workshop
 - [faculty talk](https://docs.google.com/presentation/d/1RBh-fe3DnwvgAzZ4xiovzKrrn811abraUIlJlX3TFms/edit?usp=sharing)
 
