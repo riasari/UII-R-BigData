@@ -29,6 +29,8 @@ Bonus: repeat the exercise for the Adams
 >In the filter, don't use the same conditional method as the one used for the >Washingtons.
 >Don't use the same action as used for the Washingtons.
 
+- write the query twice, once using sparklyR, once using SQL only
+
 ```{r}
 # TODO fill in
 ```

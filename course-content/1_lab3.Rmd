@@ -17,6 +17,7 @@ Your job is to remove the duplicate records. The specific requirements of your j
 * Remove duplicates. Select  only the `project` column. Then remove the dupicates, It doesn't matter which record you keep; it only matters that you keep one of them.
 * Preserve the data format of the columns.
 * Write the result as a Parquet file.
+* write the query twice, once using sparklyR, once using SQL only
 
 ```{r}
 # TODO fill in
@@ -29,3 +30,14 @@ Finally, close the spark session again.
 ```{r}
 spark_disconnect(spark)
 ```
+
+
+## task 2
+
+Read a dataframe with nested structure (JSON?).
+- drop one column of the nested struct
+- Flatten the schema.
+- write to disk
+- write the query twice, once using sparklyR, once using SQL only
+
+Repeat this once by hand, then write a method for you which handles this automatically.

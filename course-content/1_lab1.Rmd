@@ -15,6 +15,7 @@ input <- "datasets/wikimedia_edits.parquet"
 - reduce columns to only one
 - calculate a unique set of values
 - count the remaining articles
+- write the query twice, once using sparklyR, once using SQL only
 
 ```{r}
 # TODO fill in
