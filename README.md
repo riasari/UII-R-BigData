@@ -2,12 +2,12 @@
 
 Course content for the R and Big Data class 2019 at UII.
 
-Content (launch online in RStudio: [![Binder](http://mybinder.org/badge_logo.svg)](http://mybinder.org/v2/gh/lecturing/UII-R-BigData/master?urlpath=rstudio)
-):
-
 - course R and Big Data
 	- [course introduction](https://docs.google.com/presentation/d/1Janow5MBlnGeDYByCfscHlnpRBeZad_F7ZpRWOiCjRM/edit?usp=sharing)
 	- [basics](https://docs.google.com/presentation/d/1OVm1juqVPJbD7y_Ge3jyowmomvgMASbO1wT-caJrMrA/edit?usp=sharing)
+	- [recap tidyverse](course-content/recap-3tidyverse_intro.Rmd)
+	- [R web scraping](course-content/r-webscraping.Rmd)
+	- [R web scraping advanced](course-content/r-webscraping-advanced.Rmd)
 	- [introduction to distributed computing (hadoop & spark)](https://docs.google.com/presentation/d/1jDdSITm5Rlf3Dnb1FpFlY84MG9i0hWJNRwrrlAlBBT0/edit?usp=sharing)
 	- [connecting R and spark](course-content/0_connectingRandSpark.Rmd)
 	- [practical intro to dataframes](course-content/1_dataframes_intro.Rmd)

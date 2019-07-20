@@ -1,0 +1,125 @@
+---
+title: "Webscraping using R | Advanced"
+output: html_document
+---
+
+Based on https://github.com/RSummerSchool/Reproducible_Research 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Paralellism
+
+- foreach package
+
+```{r}
+library(foreach)
+
+# Example registering clusters
+cl <- parallel::makeForkCluster(2)
+doParallel::registerDoParallel(cl)
+foreach(i = 1:3, .combine = 'c') %dopar% {
+  sqrt(i)
+  # your scraping code goes here
+}
+parallel::stopCluster(cl)
+```
+
+## Capatchas
+Websites try to prevent automated access using capatchas. Howver, increasingly sophisticated techniques are available to break them. http://uncaptcha.cs.umd.edu/ uses Googles Voice API to break Googles ReCapachta algorithm.
+
+## Javascript
+
+Previously, scraping static HTML websites was demonstrated. But most sites nowadays are dynamic javascript based web applications.
+
+They cannot be scraped that easy, rahter a full browser needs to be run (Selenium) and then the DOM can be scraped again as HTML is rendered locally.
+
+The following is based on https://cran.r-project.org/web/packages/RSelenium/vignettes/docker.html
+
+```{r eval=FALSE, include=TRUE}
+library(seleniumPipes)
+library(RSelenium)
+library(rvest)
+
+# https://cran.r-project.org/web/packages/RSelenium/vignettes/RSelenium-docker.html
+
+system("docker pull selenium/standalone-firefox:3.141.59")
+system("docker run -d -p 4445:4444 selenium/standalone-firefox:3.141.59")
+
+# remDr <- remoteDr(port = 4445L, browserName = "chrome")
+remDr <- remoteDriver(
+  remoteServerAddr = "localhost",
+  port = 4445L,
+  browserName = "firefox"
+)
+
+remDr$open()
+remDr$getStatus()
+
+remDr$navigate("https://CRAN.r-project.org/")
+XML::htmlParse(remDr$getPageSource()[[1]])
+
+remDr$maxWindowSize()
+remDr$screenshot(display = TRUE)
+```
+
+## Debugging Using VNC
+
+first stop the running container
+```{bash}
+docker ps -q
+docker stop $(docker ps -q)
+
+docker pull selenium/standalone-firefox-debug:3.141.59
+
+docker run -d -p 4445:4444 -p 5901:5900 selenium/standalone-firefox-debug:3.141.59
+```
+
+now in R
+```{r}
+remDr <- remoteDriver(
+  remoteServerAddr = "localhost",
+  port = 4445L
+)
+remDr$open(silent = TRUE)
+remDr$navigate("http://www.google.com/ncr")
+remDr$getTitle()
+remDr$screenshot(display = TRUE)
+```
+
+Starat a VNC client. For example https://www.realvnc.com/de/connect/download/viewer/ is a great VNC client if you do not have one installed.
+
+Connect to: `localhost:5901` using the password `secret`.
+
+```{r}
+song_url <- "https://www.youtube.com/watch?v=LUlZ5n0cyak"
+browseURL(song_url)
+
+remDr$navigate(song_url)
+
+webElem <- remDr$findElement(using = "css", ".ytd-video-primary-info-renderer")
+
+webElem$getElementAttribute("id")
+
+
+
+# sending key press to elements
+
+remDr$navigate("http://www.google.com/ncr")
+webElem <- remDr$findElement(using = "css", "[name = 'q']")
+webElem$sendKeysToElement(list("R Cran", "\uE007"))
+
+
+remDr %>% deleteSession
+
+```
+
+The documentation has many more examples about sending mouse events or injecting java script https://cran.r-project.org/web/packages/RSelenium/vignettes/basics.html
+
+Cleanup & stop docker container
+
+```{bash}
+docker stop $(docker ps -q)
+```
+

@@ -1,0 +1,316 @@
+---
+title: "Webscraping using R"
+output: html_document
+---
+
+Based on https://github.com/RSummerSchool/Reproducible_Research 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Webscraping in the project workflow
+
+```{r project-flow-rvest, out.width="100%",fig.cap="Flow of a typical data science project - source: http://r4ds.had.co.nz/introduction.html", echo=FALSE} 
+knitr::include_graphics("img/tidyverse-flow-rvest.jpg") 
+```
+
+## scraping APIs
+
+Sometimes you are lucky and data is available via a nice API. Most APIs look very similar to:
+
+```json
+{"menu": {
+  "id": "file",
+  "value": "File",
+  "popup": {
+    "menuitem": [
+      {"value": "New", "onclick": "CreateNewDoc()"},
+      {"value": "Open", "onclick": "OpenDoc()"},
+      {"value": "Close", "onclick": "CloseDoc()"}
+    ]
+  }
+}}
+```
+
+And use either JSON or XML. Here, the same text expressed as XML:
+
+```xml
+<menu id="file" value="File">
+  <popup>
+    <menuitem value="New" onclick="CreateNewDoc()" />
+    <menuitem value="Open" onclick="OpenDoc()" />
+    <menuitem value="Close" onclick="CloseDoc()" />
+  </popup>
+</menu>
+
+```
+### manually scraping JSON API in R
+
+Several examples: https://cran.rstudio.com/web/packages/jsonlite/vignettes/json-apis.html
+
+```{r}
+citibike <- jsonlite::fromJSON("http://citibikenyc.com/stations/json")
+stations <- citibike$stationBeanList
+stations %>%
+  head
+```
+
+
+### using an R package
+
+In some specific cases you are even more lucky and a pre-built package already exists. It will call the API in the background, but already return a nice dataframe.
+
+### world bank example
+
+```{r}
+library(WDI)
+library(tidyverse)
+WDIsearch('gdp')[1:10,]
+
+dat = WDI(indicator='NY.GDP.PCAP.KD', country=c('MX','CA','US'), start=1960, end=2012)
+dat %>%
+  head
+
+ggplot(dat, aes(year, NY.GDP.PCAP.KD, color=country)) + geom_line() + 
+    xlab('Year') + ylab('GDP per capita')
+```
+
+
+### social network scraping
+
+https://github.com/vosonlab/vosonSML is a great package for scraping facebook, twitter, instagram, reddit or youtube
+
+## manual scraping
+
+To showcase this we are going to build the data set `pokemon_raw.csv` we used during the `tidyverse` recap.
+
+We will use the `tidyverse` standard-packages and the `rvest` package which is also part of the tidyverse:
+
+```{r loading-the-tidyverse}
+library(tidyverse)
+library(rvest)
+```
+
+## HTML = XML 
+
+Basics of HTML (https://web.stanford.edu/~wpmarble/webscraping_tutorial/webscraping_tutorial.pdf)
+```xml
+<!DOCTYPE html>
+<html>
+<head>
+	<title>This is the title of the webpage</title>
+</head>
+<body>
+	<h1>This is a heading</h1>
+	<p class="notThisOne">This is a paragraph</p>
+	<p class="thisOne">This is another paragraph with a different class!</p>
+	<div id="myDivID">
+		<p class="divGraf">
+			This is a paragraph inside a division, along with a
+			<a href="http://stanford.edu">a link</a>.
+		</p>
+	</div>
+</body>
+</html>
+```
+
+Live showcase of the Chrome developer toolbar and selector gadget
+
+http://selectorgadget.com/
+
+
+## Get links we want to scrape
+
+```{r}
+pokewiki_url <- "https://www.pokewiki.de/Pok%C3%A9mon-Liste"
+
+# Download and parse the html-website
+overview <- read_html(pokewiki_url)
+
+pokemon <- overview %>%
+  html_nodes("td:nth-child(3) a") %>% 
+  {tibble(german = html_attr(., "title"), path = html_attr(., "href"))} %>% 
+  mutate(
+    path = xml2::url_absolute(path, pokewiki_url),
+    rn = row_number()
+    )
+
+pokemon
+```
+
+## Build scraper for Pokemon generation
+
+I always start with one website I want to scrape and generalize later on:
+
+```{r}
+x <- read_html("https://www.pokewiki.de/Bisasam")
+
+x %>% 
+  html_node("h3+ .zentriert.c") %>% 
+  # html_node takes the first node it finds. html_nodes takes all
+  html_node("td") %>% 
+  html_text(trim = TRUE)
+```
+
+Save this procedure as a function:
+
+```{r}
+scrape_poke_generation <- function(x){
+  x %>% 
+    html_node("h3+ .zentriert.c") %>% 
+    html_node("td") %>% 
+    html_text(trim = TRUE)
+}
+```
+
+## Build scraper for Pokemon attributes
+
+```{r}
+x <- read_html("https://www.pokewiki.de/Bisasam")
+
+# Extract the table
+# CSS selector found via selectorgadget
+dat <- x %>% html_node(".innerround") %>% html_table
+dat <- dat[[1]]
+
+# What rows to scrape
+poke_attr <- c("Englisch$", "Typ$|Typen$", "Geschlecht$", "Gewicht$","Größe$", "EP bis Lv. 100$", "Farbe$")
+# How to name them. The order must match the above one!!!
+#col_names <- c("english", "types", "gender", "weight","size", "ep_to_100", "color")
+col_names <- c("type","gender", "weight","size", "ep_to_100", "color")
+
+# Index of the rows to scrape
+poke_attr_ind <- map(poke_attr, ~stringr::str_detect(dat[["X1"]], .))
+filter_indices <- lapply(poke_attr_ind, which)
+filter_indices <- unlist(filter_indices)
+
+dat %>% 
+    slice(filter_indices)
+
+# Transform the Table to get a 1xM tibble that contains the data
+dat %>% 
+    slice(filter_indices) %>% 
+    # rename the labels - while in long format
+    mutate(X1 = col_names) %>%
+    # transpose the data
+    spread(X1, X2)
+```
+
+Save this procedure as a function:
+
+```{r}
+scrape_poke_attr <- function(x){
+  # What rows to scrape
+  poke_attr <- c("Englisch$", "Typ$|Typen$", "Geschlecht$", "Gewicht$","Größe$", "EP bis Lv. 100$", "Farbe$")
+  # How to name them. The order must match the above one!!!
+  col_names <- c("type","gender", "weight","size", "ep_to_100", "color")
+  # Extract the table
+  dat <- x %>% html_node(".innerround") %>% html_table
+  # Which rows contain the data?
+  poke_attr_ind <- map(poke_attr, ~stringr::str_detect(dat[["X1"]], .))
+  filter_indices <- lapply(poke_attr_ind, which)
+  filter_indices <- unlist(filter_indices)
+
+  dat %>% 
+    slice(filter_indices) %>% 
+    # rename the labels - while in long format
+    mutate(X1 = col_names) %>%
+    # transpose the data
+    spread(X1, X2)
+}
+```
+
+## Build scraper for Pokemon statistics (speed, hp, ...)
+
+```{r}
+x <- read_html("https://www.pokewiki.de/Bisasam")
+
+  # scrape the table
+x %>% 
+    html_node(".lastisroundtable") %>% 
+    html_table(fill = TRUE, header = TRUE) %>% 
+    # set unique names - the tables is not propperly formatted => This is needed
+    set_tidy_names(quiet = TRUE) %>% 
+    # select only the base data of the Pokemon
+    select(Statuswerte, Basiswerte) %>% 
+    slice(2:7) %>% 
+    # transpose the data
+    spread(Statuswerte, Basiswerte) %>% 
+    # rename the data - while in wide format
+    rename(hp = "KP",
+           attack = "Angriff",
+           defense = "Vert.",
+           speed = "Init.",
+           attack_special = `Spez.-Angr.`,
+           defense_special = `Spez.-Vert.`) %>% 
+    # convert all columns to integer
+    mutate_all(parse_integer)
+```
+
+Save this procedure as a function:
+
+```{r}
+scrape_poke_stats <- function(x){
+  # scrape the table
+  x %>% 
+    html_node(".lastisroundtable") %>% 
+    html_table(fill = TRUE, header = TRUE) %>% 
+    # set unique names - the tables is not propperly formatted => This is needed
+    set_tidy_names(quiet = TRUE) %>% 
+    # select only the base data of the Pokemon
+    select(Statuswerte, Basiswerte) %>% 
+    slice(2:7) %>% 
+    # transpose the data
+    spread(Statuswerte, Basiswerte) %>% 
+    # rename the data - while in wide format
+    rename(hp = "KP",
+           attack = "Angriff",
+           defense = "Vert.",
+           speed = "Init.",
+           attack_special = `Spez.-Angr.`,
+           defense_special = `Spez.-Vert.`) %>% 
+    # convert all columns to integer
+    mutate_all(parse_integer)
+}
+```
+
+## Combine the scraper:
+
+```{r}
+pokemon <- pokemon %>% 
+  # Only take the 3 starter Pokemon and their evolutions
+  head(9) %>% 
+  # Read in the website (= download and parse the website)
+  mutate(doc = map(path, read_html))  %>% 
+  # Scrape the attributes per row/pokemon
+  mutate(poke_attr = map(doc, scrape_poke_attr)) %>% 
+  # Scrape the statistics (strength etc) per row/pokemon
+  mutate(poke_stats = map(doc, scrape_poke_stats)) %>% 
+  # Scrape the generation that the Pokemon was introduced
+  mutate(generation = map_chr(doc, scrape_poke_generation))
+
+pokemon
+```
+
+Drop the raw html and unnest the data
+
+```{r}
+pokemon %>% 
+  select(-doc) %>% 
+  unnest
+```
+
+Exercise
+
+* Scrape the french name of the pokemon
+
+* Extract the `src` (url) of the Pokemon image:
+```{r poke-img, out.width="100%",fig.cap="Pokemon image - source: https://www.pokewiki.de/Bisasam", echo=FALSE} 
+knitr::include_graphics("img/poke-image.jpg") 
+```
+
+* HARD: Write a scraper that extracts the evolution of the pokemon
+```{r evolution-lvl, out.width="100%",fig.cap="Evolution lvl of the Pokemon - source: https://www.pokewiki.de/Bisasam", echo=FALSE} 
+knitr::include_graphics("img/evolution-lvl.jpg") 
+```
