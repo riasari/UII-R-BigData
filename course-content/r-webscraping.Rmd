@@ -5,8 +5,9 @@ output: html_document
 
 Based on https://github.com/RSummerSchool/Reproducible_Research 
 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, include=TRUE)
 ```
 
 ## Paralellism
@@ -67,7 +68,7 @@ remDr$screenshot(display = TRUE)
 ## Debugging Using VNC
 
 first stop the running container
-```{bash}
+```{bash echo = TRUE, eval = FALSE, include=TRUE}
 docker ps -q
 docker stop $(docker ps -q)
 
@@ -119,7 +120,7 @@ The documentation has many more examples about sending mouse events or injecting
 
 Cleanup & stop docker container
 
-```{bash}
+```{bash echo = TRUE, eval = FALSE, include=TRUE}
 docker stop $(docker ps -q)
 ```
 

@@ -3,16 +3,39 @@ title: "Machine Learning"
 output: html_notebook
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, include=TRUE)
+```
+
+Install additional packages if required
+
+```{r}
+install.packages(c("plumber", "callr", "httr"))
+install.packages("mlflow")
+devtools::install_github("rstudio/mleap")
+# install.packages("mleap")
+
+mleap::install_maven()
+mleap::install_mleap()
+
+mlflow::install_mlflow()
+```
+
 Load spark
 
 ```{r}
+library(mleap)
 library(sparklyr)
 library(dplyr)
 library(ggplot2)
-library(arrow)
+# library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
-spark <- spark_connect(master = "local", config = conf)
+
+# CURRENTLY ONLY spark 2.3 is supported for this part.
+# install if you do not already have it
+# spark_install(version = "2.3.3")
+spark <- spark_connect(master = "local", version = "2.3.3", config= conf)
 ```
 
 sparklyr provides bindings to Spark’s distributed machine learning library. In particular, sparklyr allows you to access the machine learning routines provided by the spark.ml package.
@@ -72,19 +95,351 @@ Pipelines(https://spark.rstudio.com/guides/pipelines/) are a great way to combin
 > Spark is just a tool to run machine learning models on larger data!
 Make sure to understand the concepts of machine learning without spark first.
 
+### Here an more complete example
+
+Showcasing training / test splits and some feeature transformation:
+
+```{r}
+mtcars_tbl <- copy_to(spark, mtcars, "mtcars")
+
+# transform our data set, and then partition into 'training', 'test'
+partitions <- mtcars_tbl %>%
+  filter(hp >= 100) %>%
+  ft_bucketizer(input_col  = "cyl",
+                output_col = "cyl8",
+                splits     = c(0,8,12)) %>%
+  sdf_random_split(training = 0.5, test = 0.5, seed = 888)
+
+# fit a linear mdoel to the training dataset
+fit <- partitions$training %>%
+  ml_linear_regression(mpg ~ wt + cyl)
+
+# summarize the model
+summary(fit)
+
+# Score the data
+pred <- ml_predict(fit, partitions$test) %>%
+  collect
+
+# Plot the predicted versus actual mpg
+ggplot(pred, aes(x = mpg, y = prediction)) +
+  geom_abline(lty = "dashed", col = "red") +
+  geom_point() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  coord_fixed(ratio = 1) +
+  labs(
+    x = "Actual Fuel Consumption",
+    y = "Predicted Fuel Consumption",
+    title = "Predicted vs. Actual Fuel Consumption"
+  )
+```
+
+**Minimal pipeline**
+
+```{r}
+scaler <- ft_standard_scaler(
+  spark,
+  input_col = "features",
+  output_col = "features_scaled",
+  with_mean = TRUE)
+
+df <- copy_to(spark, data.frame(value = rnorm(100000))) %>% 
+  ft_vector_assembler(input_cols = "value", output_col = "features")
+
+scaler_model <- ml_fit(scaler, df)
+
+# look at the model. Nicle it prints the different stages
+scaler_model
+
+scaler_model %>% 
+  ml_transform(df) %>%
+  glimpse()
+```
+
+**Larger pipeline** 
+
+based on https://therinspark.com/pipelines.html
+
+Now that we have an understanding of the rudimentary concepts for ML Pipelines, let us apply them to the predictive modeling problem from the previous chapter, where we are trying to predict whether people are currently employed by looking at their profiles. Our starting point is the okc_train data frame with the relevant columns.
+
+First [dwnload the dataset](https://github.com/r-spark/okcupid/raw/master/profiles.csv.zip) and place it in the datasets directory.
+
+Prepare the data:
+
+```{r}
+unzip("datasets/profiles.csv.zip", exdir = "datasets")
+okc <- spark_read_csv(
+  spark, 
+  "datasets/profiles.csv", 
+  escape = "\"", 
+  memory = FALSE,
+  options = list(multiline = TRUE)
+) %>%
+  mutate(
+    height = as.numeric(height),
+    income = ifelse(income == "-1", NA, as.numeric(income))
+  ) %>%
+  mutate(sex = ifelse(is.na(sex), "missing", sex)) %>%
+  mutate(drinks = ifelse(is.na(drinks), "missing", drinks)) %>%
+  mutate(drugs = ifelse(is.na(drugs), "missing", drugs)) %>%
+  mutate(job = ifelse(is.na(job), "missing", job))
+
+# We specify escape = "\"" and options = list(multiline = TRUE) here to accommodate for embedded quote characters and newlines in the essay fields. We also convert the height and income columns to numeric types, and recode missing values in the string columns. Note that it may very well take a few tries of specifying different parameters to get the initial data ingest correct, and sometimes you may have to revisit this step after you learn more about the data during modeling.
+
+okc %>% glimpse
+
+okc <- okc %>%
+  mutate(
+    not_working = ifelse(job %in% c("student", "unemployed", "retired"), 1 , 0)
+  )
+
+okc %>% 
+  group_by(not_working) %>% 
+  tally()
+
+data_splits <- sdf_random_split(okc, training = 0.8, testing = 0.2, seed = 42)
+okc_train <- data_splits$training
+okc_test <- data_splits$testing
+
+okc_train <- okc_train %>%
+  mutate(essay_length = char_length(paste(!!!syms(paste0("essay", 0:9)))))
+
+# only keep limited columns
+okc_train <- okc_train %>% 
+  select(not_working, age, sex, drinks, drugs, essay1:essay9, essay_length)
+
+
+spark_write_parquet(okc_train, "datasets/okc_train.parquet")
+```
+
+build the pipeline
+
+```{r}
+pipeline <- ml_pipeline(spark) %>%
+  ft_string_indexer(input_col = "sex", output_col = "sex_indexed") %>%
+  ft_string_indexer(input_col = "drinks", output_col = "drinks_indexed") %>%
+  ft_string_indexer(input_col = "drugs", output_col = "drugs_indexed") %>%
+  ft_one_hot_encoder_estimator(
+    input_cols = c("sex_indexed", "drinks_indexed", "drugs_indexed"),
+    output_cols = c("sex_encoded", "drinks_encoded", "drugs_encoded")
+  ) %>%
+  ft_vector_assembler(
+    input_cols = c("age", "sex_encoded", "drinks_encoded", 
+                   "drugs_encoded", "essay_length"), 
+    output_col = "features"
+  ) %>%
+  ft_standard_scaler(input_col = "features", output_col = "features_scaled", 
+                     with_mean = TRUE) %>%
+  ml_logistic_regression(features_col = "features_scaled", 
+                         label_col = "not_working")
+
+pipeline
+# The first three stages index the sex, drinks, and drugs columns, which are character, into numeric indicies via ft_string_indexer(). This is necessary for the ft_one_hot_encoder_estimator() that comes next which requires numeric column inputs. Once all of our predictor variables are of numeric type (recall that age is numeric already), we can create our features vector using ft_vector_assembler() which concatenates all of its inputs together into one column of vectors. We can then use ft_standard_scaler() to normalize all elements of the features column (including the one-hot encoded 0/1 values of the categorical variables), and finally apply a logistic regression via ml_logistic_regression().
+```
+
+**hyper parameter tuning using cross validation**
+
+```{r}
+cv <- ml_cross_validator(
+  spark,
+  estimator = pipeline,
+  estimator_param_maps = list(
+    standard_scaler = list(with_mean = c(TRUE, FALSE)),
+    logistic_regression = list(
+      elastic_net_param = c(0.25, 0.75),
+      reg_param = c(1e-2, 1e-3)
+    )
+  ),
+  evaluator = ml_binary_classification_evaluator(spark, label_col = "not_working"),
+  num_folds = 3)
+
+cv
+
+okc_train <- spark_read_parquet(spark, "datasets/okc_train.parquet")
+cv_model <- ml_fit(cv, okc_train) # this takes a couple of minutes
+
+ml_validation_metrics(cv_model) %>%
+  arrange(-areaUnderROC)
+```
+
+Pipelines can easily be reused. They can be written to disk and loaded again later for scoring purposes.
+
+```{r}
+model_dir <- file.path("spark_model")
+ml_save(cv_model$best_model, model_dir, overwrite = TRUE)
+
+# let's look into the data spark saved to disk
+list.dirs(model_dir,full.names = FALSE) %>%
+  head(10)
+
+spark_read_json(spark, file.path(
+  file.path(dir(file.path(model_dir, "stages"),
+                pattern = "1_string_indexer.*",
+                full.names = TRUE), "metadata")
+)) %>% 
+  glimpse()
+
+spark_read_parquet(spark, file.path(
+  file.path(dir(file.path(model_dir, "stages"),
+                pattern = "6_logistic_regression.*",
+                full.names = TRUE), "data")
+))
+
+model_reload <- ml_load(spark, model_dir)
+
+# close the spark session again.
+spark_disconnect(spark)
+```
+
+## Model Metadata and Lifecycle management - mlFlow
+
+```{bash echo = TRUE, eval = FALSE, include=TRUE}
+pip install mlflow # or pip3
+
+mlflow server # run this in a different shell (not RStudio)
+```
+
+Got to the [MLFlow UI on http://127.0.0.1:5000/#/](http://127.0.0.1:5000/#/)
+
+Below demonstrates how to use the tool:
+
+```{r}
+library(mlflow)
+
+
+# Define parameters
+my_int <- mlflow_param("my_int", 1, "integer")
+my_num <- mlflow_param("my_num", 1.0, "numeric")
+my_str <- mlflow_param("my_str", "a", "string")
+
+# Log parameters
+mlflow_log_param("param_int", my_int)
+mlflow_log_param("param_num", my_num)
+mlflow_log_param("param_str", my_str)
+
+# Read parameters
+column <- mlflow_log_param("column", 1)
+
+# Log total rows
+mlflow_log_metric("rows", nrow(iris))
+
+# Train model
+model <- lm(Sepal.Width ~ iris[[as.integer(column)]], iris)
+
+# Log models intercept
+mlflow_log_metric("intercept", model$coefficients[["(Intercept)"]])
+
+mlflow_create_experiment("R-Test")
+mlflow_set_experiment("R-Test")
+
+# https://github.com/rstudio/sparklyr/issues/1983
+# The R API is still not 100% feature complete with  the Python or scala API
+# mlflow_log_model(model_reload, "testing-model") # This call fails
+
+mlflow_ui()
+```
+
+Logging parameters is important to keep models, artifacts and results organized. But mlflow can do even more and automate a lot of the ML workflow lifedycle using a CLI. (not covered here):
+
+- Tracking: keep track of your parameters, notes, and metrics for experiments.
+- Project: bundle your project and environment so others can reproduce your results.
+- Model: serialize and package your scoring function for serving locally and on the cloud.
+- Even automated hyper parameter tuning is available.
+
+## scoring
+
+### batch scoring
+
+For a really large quantity of batch scoring input simply use plain spark and write to a distributed file system. 
+Below outputting the result via a RESTful web API is demonstrated.
+
+Lets' define a scoring function in `plumber/spark-plumber.R`:
+```{r comment=''}
+cat(readLines('plumber/spark-plumber.R'), sep = '\n')
+```
+
+and start a web server:
+```{r}
+service <- callr::r_bg(function() {
+  p <- plumber::plumb("plumber/spark-plumber.R")
+  p$run(port = 8000)
+})
+```
+
+After a couple of seconds call:
+
+```{r}
+httr::content(httr::POST(
+  "http://127.0.0.1:8000/predict",
+  body = '{"age": 42, "sex": "m", "drinks": "not at all", 
+           "drugs": "never", "essay_length": 99}'
+))
+```
+This reply tell us that this particular profile is likely to not be unemployed, that is, employed. We can now terminate the plumber service by stopping the callr service:
+
+```{r}
+service$interrupt()
+```
+
+If we were to time this operation (e.g. with system.time()), we see that the latency is on the order of hundreds of milliseconds, which may be appropriate for batch applications but insufficient for real-time. The main bottleneck is the serialization of the R data frame to a Spark data frame and back. Also, it also requires an active Spark session which is a heavy runtime requirement. To ameliorate these issues, we discuss next a deployment method more suitable for real time deployment.
+
+### real time scoring
+
+```{r}
+library(mleap)
+
+spark <- spark_connect(master = "local", version = "2.3.3")
+
+spark_model <- ml_load(spark, "spark_model")
+
+#The way we save a model to MLeap bundle format is very similar to saving a model using the Spark ML Pipelines API; the only additional argument is sample_input, which is a Spark data frame with schema that we expect new data to be scored to have.
+
+sample_input <- data.frame(
+  sex = "m",
+  drinks = "not at all",
+  drugs = "never",
+  essay_length = 99,
+  age = 25,
+  stringsAsFactors = FALSE
+)
+
+sample_input_tbl <- copy_to(spark, sample_input)
+
+# error: Field "features_scaled" does not exist. 
+ml_write_bundle(spark_model, sample_input_tbl, "mleap_model.zip", overwrite = TRUE)
+
+spark_disconnect(spark)
+```
+
+now create a similar real time scoring method which no longer relies on spark:
+
+```{r comment=''}
+cat(readLines('plumber/mleap-plumber.R'), sep = '\n')
+```
+
+```{r}
+service <- callr::r_bg(function() {
+  p <- plumber::plumb("plumber/mleap-plumber.R")
+  p$run(port = 8000)
+})
+
+# the response should now be in the tens of millisenconds
+httr::POST(
+  "http://127.0.0.1:8000/predict",
+  body = '{"age": 42, "sex": "m", "drinks": "not at all", 
+           "drugs": "never", "essay_length": 99}'
+) %>%
+  httr::content()
+
+service$interrupt()
+```
+
 There are many more machine learning models out there which are not supported by spark. But as shown in section UADF it is quite simple to parallelize these using sparklyR.
 
 Be sure to check out https://github.com/harryprince/awesome-sparklyr and particularly
-- https://github.com/rstudio/mleap
-- https://github.com/mlflow/mlflow/tree/master/mlflow/R/mlflow
+- https://github.com/rstudio/mleap for scoring. It is briefly demonstrated abovef
+- https://github.com/mlflow/mlflow/tree/master/mlflow/R/mlflow for model governance, and reproducibility
 which are well suited for production serving of ML models.
 
 ## lab task
 Many more algorithms can be explored at https://spark.rstudio.com/mlib/ go through them as a lab exercise. Also look at https://spark.rstudio.com/graphframes/ and https://github.com/rstudio/sparkxgb and the other links from https://github.com/harryprince/awesome-sparklyr
-
-## cleanup
-
-Finally, close the spark session again.
-```{r}
-spark_disconnect(spark)
-```

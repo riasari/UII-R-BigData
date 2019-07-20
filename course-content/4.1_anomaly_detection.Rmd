@@ -1,0 +1,102 @@
+---
+title: "Anomaly Detection using H20"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, include=TRUE)
+```
+
+Install sutable H2o following http://docs.h2o.ai/sparkling-water/2.4/latest-stable/doc/rsparkling.html
+
+```{r}
+# The following two commands remove any previously installed H2O packages for R.
+if ("package:h2o" %in% search()) { detach("package:h2o", unload=TRUE) }
+if ("h2o" %in% rownames(installed.packages())) { remove.packages("h2o") }
+
+# Install packages H2O depends on
+pkgs <- c("methods", "statmod", "stats", "graphics", "RCurl", "jsonlite", "tools", "utils")
+for (pkg in pkgs) {
+    if (! (pkg %in% rownames(installed.packages()))) { install.packages(pkg) }
+}
+
+
+options(rsparkling.sparklingwater.version = "3.24.0.5")
+
+install.packages("h2o", type = "source", repos = "http://h2o-release.s3.amazonaws.com/h2o/rel-yates/5/R")
+
+install.packages("rsparkling", type = "source", repos = "http://h2o-release.s3.amazonaws.com/sparkling-water/rel-2.4/13/R")
+```
+
+
+
+Load spark
+
+```{r}
+library(h2o)
+library(rsparkling)
+
+library(sparklyr)
+library(ggplot2)
+# library(arrow)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+spark <- spark_connect(master = "local", version = "2.4.3", config= conf)
+```
+
+
+start H20 after spark
+```{r}
+h2o_context(spark)
+
+h2o_flow(spark)
+```
+
+
+copy some data to spark
+```{r}
+prostate_path = system.file("extdata", "prostate.csv", package = "h2o")
+prostate_tbl <- spark_read_csv(spark, prostate_path)
+```
+
+and then over to H2o to use their advanced algorithms
+
+```{r}
+prostate_hf <- as_h2o_frame(spark, prostate_tbl)
+prostate_hf
+```
+```{r}
+# train a neural network / autoencoder
+prostate_dl = h2o.deeplearning(x = 3:9, training_frame = prostate_hf, autoencoder = TRUE,
+                               hidden = c(10, 10), epochs = 5)
+
+# apply the netword / deocde the results and evaluate the reconstruction error
+prostate_anon = h2o.anomaly(prostate_dl, prostate)
+head(prostate_anon)
+
+summary(prostate_anon)
+prostate_anon_per_feature = h2o.anomaly(prostate_dl, prostate, per_feature=TRUE)
+head(prostate_anon_per_feature)
+
+summary(prostate_anon_per_feature)
+
+err <- as.data.frame(prostate_anon)
+plot(sort(err$Reconstruction.MSE), main='Reconstruction Error')
+```
+
+Observations with a large reconstruction error constitute an anomaly.
+
+Following along with https://amunategui.github.io/anomaly-detection-h2o/ on can interatively improve the model by removing regular observations and concentrating only on the ones with a larger reconstruction error.
+
+They can even further improve the model usinga bagging strategy, i.e. having different classifiers for different sections (regular vs. anomalies) in the data.
+
+# Why use h20?
+
+- More algorithms than mllib only.
+- focused on accuracy of implementation
+- deployment as jar possible
+
+
+```{r}
+spark_disconnect(spark)
+```

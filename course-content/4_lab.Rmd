@@ -2,8 +2,16 @@
 title: "ML Lab"
 output: html_notebook
 ---
+## Task 1:
 
-## Task:
+- take a dataset of your choice i.e. from https://archive.ics.uci.edu/ml/index.php or elsewhere which is suited for regression or classification.  Then, build a data pipeline which:
+
+- performs hyperparameter tuning
+- uses [xgboost on spark](https://github.com/rstudio/sparkxgb) as the classifier or regressor
+- log the results into mlFlow
+- serve the model as a restful API using mleap
+
+## Task 2:
 
 - Perform an exploratory analysis of the Online Retail Data Set  https://archive.ics.uci.edu/ml/datasets/Online%20Retail 
 
@@ -12,6 +20,8 @@ output: html_notebook
 - what is the recommendation 
 - recommend next best action / next purchase
 
-## solution
+**solution task 2**
+
+Only look it up when you feel stuck.
 
 https://rstudio-pubs-static.s3.amazonaws.com/430563_d38c12b53d724fa6852949b1f3e4ffbf.html

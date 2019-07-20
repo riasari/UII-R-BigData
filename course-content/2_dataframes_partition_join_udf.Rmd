@@ -46,7 +46,7 @@ Explicity tuning paralellism and most importantly preventing data skew are very 
 
 ## JOINs
 
-In the first workbook we already looked into JOINs. Let us revisit them.
+In the first notebook we already looked into JOINs. Let us revisit them.
 
 As our data is distributed it resides on many different nodes:
 ![HDFS architecture](img/hdfsarchitecture.gif)
@@ -61,7 +61,7 @@ In special cases where one of the dataframes is small, we can do better. A broad
 ![broadcast join](img/spark-broadcast-torrent.png)
 the small dataframe is copied to all the executors. Then a map-side JOIN operation can be performed which is much faster.
 
-> It is important to tune `spark.sql.autoBroadcastJoinThreshold` parameter. By default only dataframes up to 10MB are broadcasted.
+> It is important to tune `spark.sql.autoBroadcastJoinThreshold` parameter. By default only dataframes up to 10MB are broadcasted. But do not forget to increase the memory of the executors and driver accordingly to what you want to broadcast.
 
 Lets look at some data:
 
@@ -98,14 +98,22 @@ However, they come with a cost...
 
 But there are some cases there the built in functions are not enough.
 > NOTE apparently, this does not yet work with Arrow /I can't get it to work on my machine.
+> Arrow makes the data handover faster, but seems to be limited in functionality.
+> Simply do not load the R Arrow package when starting the spark session.
 
 ```{r}
 my_df <- sdf_len(spark, 10) 
+my_df
+
+if ("arrow" %in% .packages()) detach("package:arrow")
 my_df %>% spark_apply(function(df) df * 10) # R colusre
 my_df %>% mutate(id = id*10) # native spark code
 ```
 
 demos how to run a R closure /function in a distruted way via spark. Obviously it is not efficient.
+Look at the time spent in the calculations and the execution graph. On my computer this is about 3 seconds vs. 80ms in favour of the native code.
+
+![UDF performance vs. native code](img/udf-vs-native.png)
 
 A more complete example
 ```{r}
@@ -117,13 +125,29 @@ iris_tbl %>%
 ```
 but still not really mandating the use of a R native UDF. But think about a dataset in your domain. Maybe genomics. Here you could use a standard R function to parse DNA sequences and parallelize it. This would be a case where a R native UDF really makes sense.
 
-But it get's more interesting with UADF (user defined aggregate functions)
+But it get's more interesting with UADF (user defined aggregate functions).
+
+### UDF genomics
+
+> @Ema your part goes here
+
+```{r}
+# TODO
+```
+
+ 
 ## UADF
 
 Assume you have a big data set and for each group you want to compute an aggregation. In general this is rather easy via sparklyr or the SQL API for standard SQL aggregations (mean,sum,count).
 However, when you want to fit a model, i.e. a more complex and non standard aggregation it gets a bit more complicated.
 If you were using native (java, scala) spark you could write a custom UADF. This is not possible from R.
-sparkR offers `spark_apply` to handle working with groups which easily allows to scale out computation i.e. paralellize it per each group.
+sparkR offers `spark_apply` to handle working with groups which easily allows to scale out computation i.e. paralellize it per each group. Ad it is by far simpler and nicer to use.
+
+### without spark
+
+Go back to the beginning [recap-3tidyverse_intro.Rmd secton Managing many models](course-content/recap-3tidyverse_intro.Rmd).
+
+### with spark
 
 Compute a linear model for the iris dataset for each group of species:
 ```{r}
@@ -148,10 +172,13 @@ spark_apply(iris_tbl, function(e) stop("Make this fail"))
 To use R packages inside Spark, your packages must be installed on the worker nodes. The first time you call spark_apply all of the contents in your local .libPaths() will be copied into each Spark worker node via the SparkConf.addFile() function. Packages will only be copied once and will persist as long as the connection remains open. It’s not uncommon for R libraries to be several gigabytes in size, so be prepared for a one-time tax while the R packages are copied over to your Spark cluster. You can disable package distribution by setting packages = FALSE. Note: packages are not copied in local mode (master="local") because the packages already exist on the system.
 
 
-## Reading JSON
+## Handling nested data
 
 Find some JSON files and load them into spark.
 Examine the (nested) schema.
+
+You need an additional package `sparklyr.nested` to make it work.
+
 ```{r}
 my_json <- spark_read_json(spark, "datasets/json_sample")
 my_json %>%

@@ -40,6 +40,7 @@ library(sparklyr)
 library(geospark)
 library(dplyr)
 library(ggplot2)
+if ("arrow" %in% .packages()) detach("package:arrow")
 #library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
