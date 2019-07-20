@@ -43,7 +43,7 @@ On the first run you also must download spark. First check for available version
 
 ```{r, eval=FALSE, include=TRUE}
 spark_available_versions()
-spark_install(version = "2.4.0")
+spark_install(version = "2.4.3")
 ```
 ![use the GUI](img/startingSpark.png) or execute the following code:
 
