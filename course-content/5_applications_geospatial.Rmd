@@ -36,8 +36,8 @@ devtools::install_github("harryprince/geospark")
 
 Then instanciate your spark session. But add additional configuration to use the `GeoSpark` kryo serializer to improve efficiency.
 ```{r}
-library(sparklyr)
 library(geospark)
+library(sparklyr)
 library(dplyr)
 library(ggplot2)
 if ("arrow" %in% .packages()) detach("package:arrow")
@@ -91,8 +91,9 @@ points_wkt <- mutate(points_wkt, x = st_geomfromwkt(geom))
 points_wkt # y is here
 polygons_wkt # x is here
 
-sc_res <- st_join(polygons_wkt %>% select(area,y),
-                  points_wkt %>% select(city,state,x), join = sql("st_contains(y,x)")) %>%
+sc_res <- inner_join(polygons_wkt,
+                     points_wkt,
+                     sql_on = sql("st_contains(y,x)")) %>% 
   group_by(area, state) %>%
   summarise(cnt = n()) 
 
@@ -115,12 +116,13 @@ leaflet::addTiles() %>%
 leaflet::addPolygons(popup = ~as.character(cnt),color=~colormap::colormap_pal()(cnt)) 
 ```
 
-Look again at the details in spark:
+Look at the details in spark:
+Make sure that you do not see a `Broadcast Hash Join`
 ![actual join](img/sort-join.png)
-Instead of the desired join above, spark actually executes:
+Instead of the `BroadcatHashJoin` above, you should see a `RangeJoin`, if everything is set up correctly:
 ![desired join](img/range-join.png)
 
-Why is this bad? IT will not scale, as catalyst optimizations are not used to improve upon $O(n^2)$.
+Why is the `BroadcatHashJoin` bad? It will not scale, as catalyst optimizations are not used to improve upon $O(n^2)$.
 
 What can we do if `dbplyr` does not support the right functions or generates the wrong SQL statements?
 
@@ -149,17 +151,7 @@ sdf_sql(spark, "SELECT * FROM points_wkt a, polygons_wkt b WHERE ST_Intersects(b
 ```
 Also fails, as the geoemtry types are (strangely) not yet parsed.
 
-But:
-```{r}
-points_wkt %>%
-  rename(point_geom = geom) %>%
-  sdf_register("point_geom")
-
-
-sdf_sql(spark, "SELECT * FROM point_geom, polygons WHERE ST_Intersects(ST_geomFromWKT(geom), ST_geomFromWKT(point_geom))")
-```
-
-works but in my opinion is not as nice as it should be so:
+But below finally works nicely (if you prefer SQL over tidyverse approach):
 ```{r}
 mutate(polygons_wkt, y = st_geomfromwkt(geom)) %>%
   select(-geom)%>%
@@ -171,9 +163,7 @@ mutate(points_wkt, x = st_geomfromwkt(geom)) %>%
 sdf_sql(spark, "SELECT * FROM poly_geometry, point_geometry WHERE ST_Intersects(y, x)")
 ```
 
-Is the code which actually works as expected for an R user's perspective and only calls out to SQL where absolutely required.
-
-> Discussion to improve the package is ongoging at https://github.com/rstudio/sparklyr/issues/1977 maybe at a later point in time writing the SQL code is no longer required.
+The last approach where the code actually works as expected for an R user's perspective and only calls out to SQL where absolutely required.
 
 ## cleanup
 

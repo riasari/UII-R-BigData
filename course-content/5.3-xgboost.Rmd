@@ -1,0 +1,78 @@
+---
+title: "Xgboost"
+output:
+  html_document:
+    df_print: paged
+---
+
+Gradient boosted trees are a very popular kind of machine learning model.
+
+```{r}
+devtools::install_github("rstudio/sparkxgb")
+```
+
+
+```{r}
+library(sparkxgb)
+library(sparklyr)
+library(dplyr)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+
+spark <- spark_connect(master = "local", config = conf)
+```
+
+load a dummy graph
+
+```{r}
+iris_tbl <- sdf_copy_to(spark, iris)
+
+xgb_model <- xgboost_classifier(
+  iris_tbl, 
+  Species ~ .,
+  num_class = 3,
+  num_round = 50, 
+  max_depth = 4
+)
+
+xgb_model %>%
+  ml_predict(iris_tbl) %>%
+  select(Species, predicted_label, starts_with("probability_")) %>%
+  glimpse()
+
+
+pipeline <- ml_pipeline(spark) %>%
+  ft_r_formula(Species ~ .) %>%
+  xgboost_classifier(num_class = 3)
+
+param_grid <- list(
+  xgboost = list(
+    max_depth = c(1, 5),
+    num_round = c(10, 50)
+  )
+)
+
+cv <- ml_cross_validator(
+  spark,
+  estimator = pipeline,
+  evaluator = ml_multiclass_classification_evaluator(
+    spark, 
+    label_col = "label",
+    raw_prediction_col = "rawPrediction"
+  ),
+  estimator_param_maps = param_grid
+)
+
+cv_model <- cv %>%
+  ml_fit(iris_tbl)
+
+summary(cv_model)
+```
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```

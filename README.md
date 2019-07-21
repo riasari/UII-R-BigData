@@ -29,7 +29,8 @@ Course content for the R and Big Data class 2019 at UII.
 	- [streaming advanced (sliding windows, joins)](course-content/7_streaming_advanced.Rmd)
 	- further (advanced) content if time permits
 	  - [applications geospatial](course-content/5_applications_geospatial.Rmd)
-	  - [graph analytics](todo)
+	  - [graph analytics](course-content/5.2_graph_analytics.Rmd)
+	  - [xgboost](course-content/5.3_xgbboost.Rmd)
 	- **capstone project**
 	  - setting up a database in docker (postgresql)
 	  - take a dataset of your choice. Download it and clean it. Perform an exploratory analysis of the data using sparklyR.
