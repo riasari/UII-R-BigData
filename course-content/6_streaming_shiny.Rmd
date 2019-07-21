@@ -3,7 +3,7 @@ title: "Streaming & Shiny"
 output: html_notebook
 ---
 
-Spark operates in micro batches, but recently added (alpha version) a continous procesing mode.
+Spark operates in micro batches, but recently added (alpha version) a continous procesing mode. Also, recently support for structured (SQL like) streaming was added.
 
 ```{r}
 library(future)
@@ -32,6 +32,7 @@ bbaz
 
 Then start the streaming process
 ```{r}
+destination <- "streaming_destination"
 if(file.exists(destination)) unlink(destination, TRUE)
 read_folder <- stream_read_scoket(spark, options = list(host = "localhost", port = 9999)) 
 write_output <- stream_write_csv(read_folder, destination, mode = "append")
@@ -40,24 +41,45 @@ write_output <- stream_write_csv(read_folder, destination, mode = "append")
 And watch the file system in the output directory.
 Type some more lines in the shell.
 
-Finally cleanup / stop butting in RStudio:
+Finally cleanup / stop button in RStudio:
 ```{r}
 stream_stop(write_output) # cleanup
 ```
 
-What happened:
+What happened?
+
+### micro-batch processing
+
 Spark operates in micro batches
 ![structured streaming microbatch](img/mb-green.png)
 ![structured streaming microbatch fail](img/mb-red.png)
 it is important that each batch finishes befor the next one needs to be processed to be stable:
 ![structured streaming microbatch mb stable](img/building-robust-adaptive-streaming-apps-with-spark-streaming-11-638.jpg)
 
+### unbounded table
+
 Spark Structured Streaming adds a declarative layer on top and allows you to think about unbounded tables.
 Incoming data get's appended to an unbounded table.
 ![structured streaming unbounded table](img/unbounded_table.png)
-A query on the input will generate the “Result Table”. Every trigger interval (for sparklyR by default 5 seconds, `stream_trigger_interval()` to change it ), a new rows get appended to the Input Table, which eventually updates the Result Table. Whenever the result table gets updated, we would want to write the changed result rows to an external sink.
+
+# Querying the input table
+
+A query on the input will generate the “result table”. Every trigger interval (for sparklyR by default  1000 milliseconds, `stream_trigger_interval()` to change it), a new row gets appended to the input table, which eventually updates the result table. Whenever the result table gets updated, we would want to write the changed result rows to an external sink.
+
+At every trigger Interval:
+
+- New rows are appended to the input table.
+- The query is re-executed.
+- The result table table is updated accordingly.
+- The rows are written to some external output, or sink.
+
 ![trigger generate results](img/structured-streaming-model.png)
-The “Output” is defined as what gets written out to the external storage. The output can be defined in a different mode:
+
+### output modes
+
+The “Output” is defined as what gets written out to the external storage.
+Three different output modes are supported as of spark 2.1.1:
+
 ![output modes](img/output_modes.png)
 
 - Complete Mode - The entire updated Result Table will be written to the external storage. It is up to the storage connector to decide how to handle writing of the entire table.
@@ -66,11 +88,15 @@ The “Output” is defined as what gets written out to the external storage. Th
 
 - Update Mode - Only the rows that were updated in the Result Table since the last trigger will be written to the external storage (available since Spark 2.1.1). Note that this is different from the Complete Mode in that this mode only outputs the rows that have changed since the last trigger. If the query doesn’t contain aggregations, it will be equivalent to Append mode.
 
+## streaming aggregation
 
 More complex processing. Let's split the words and perform the classic word count in streaming fashion.
+Again, read from a tcp-ip socket:
+
 ```{r}
 read_folder <- stream_read_scoket(spark, options = list(host = "localhost", port = 9999)) 
-dplyr::db_drop_table(spark, my_table)
+my_table <- "stream"
+DBI::dbGetQuery(spark, paste("DROP TABLE IF EXISTS", my_table))
 
 process_stream <- read_folder %>%
   ft_tokenizer(input_col = "value", 
@@ -82,12 +108,13 @@ process_stream <- read_folder %>%
   )
 write_output <- stream_write_memory(process_stream, name = my_table)
 
+# watch the spark UI http://localhost:4040/jobs/
 tbl(spark, my_table) # refresh a couple of times after typing in the shell
 
 stream_stop(write_output) # cleanup / stop buttion
 ```
 
-The first lines DataFrame is the input table, and the final wordCounts DataFrame is the result table. Note that the query on streaming lines DataFrame to generate wordCounts is exactly the same as it would be a static DataFrame. However, when this query is started, Spark will continuously check for new data from the socket connection. If there is new data, Spark will run an “incremental” query that combines the previous running counts with the new data to compute updated counts, as shown below.
+The query on the streaming lines dataFrame to generate wordCounts is exactly the same as it would be a static dataFrame. However, when this query is started, Spark will continuously check for new data from the socket connection. If there is new data, Spark will run an “incremental” query that combines the previous running counts with the new data to compute updated counts, as shown below.
 
 ![illustration of above query](img/structured-streaming-example-model.png)
 
@@ -95,7 +122,7 @@ The first lines DataFrame is the input table, and the final wordCounts DataFrame
 
 ## basic IO
 
-Another example which also visualizes the stream.
+Another example which also visualizes the stream and reads some files.
 
 ```{r}
 source <- "streaming_source"
@@ -110,7 +137,9 @@ invisible(future(stream_generate_test(interval = 0.2, iterations = 100, path = s
 
 stream_view(write_output)
 ```
+
 You should see something similar to:
+
 ![R streaming on spark](img/stream_view.png)
 stop when complete:
 
@@ -121,7 +150,9 @@ stream_stop(write_output)
 What happened:
 The output writer is what starts the streaming job. It will start monitoring the input folder, and then write the new results in the “source-out” folder. So as new records stream in, new files will be created in the “source-out” folder. Since there are no operations on the incoming data at this time, the output files will have the same exact raw data as the input files. The only difference is that the files and sub folders within “source-out” will be structured how Spark structures data folders.
 
-## processing
+## streaming aggregartion with ml pre-processing step
+
+This example builds on the previous. It adds a processing step that manipulates the input data before saving it to the output folder. In this case, a new binary field is added indicating if the value from x is over 400 or not.
 
 ```{r}
 if(file.exists(source)) unlink(source, TRUE)
@@ -150,9 +181,15 @@ spark_read_csv(spark, source, destination, memory = FALSE) %>%
   group_by(over) %>%
   tally()
 ```
-The counters will increase over time
+The counters will increase over time as more data is processed
+Stop  the experiment
 
 ## Aggregate in process and output to memory
+
+Another option is to save the results of the processing into a in-memory Spark table. Unless intentionally saving it to disk, the table and its data will only exist while the Spark session is active.
+
+The biggest advantage of using Spark memory as the target, is that it will allow for aggregation to happen during processing. This is an advantage because aggregation is not allowed for any file output, expect Kafka, on the input/process stage.
+
 
 ```{r}
 if(file.exists(source)) unlink(source, TRUE)
@@ -187,15 +224,17 @@ stream_stop(write_output)
 
 ## Shiny integration
 
-Shiny allows R to quickly generate some nice looking interactive web UI.
+[Shiny](https://shiny.rstudio.com/) allows R to quickly generate some nice looking interactive web UI.
 https://rstudio.github.io/shinydashboard/ is a great template.
-We will start with something visually simpler though:
+We will start with something visually simpler though.
+
+Each time a new data point arrives and a trigger is triggered (1 second) the dashboard is updated.
 
 ```{r}
 if(file.exists(source)) unlink(source, TRUE)
 if(file.exists(destination)) unlink(destination, TRUE)
 
-stream_generate_test(iterations = 1)
+stream_generate_test(iterations = 1,  path = source)
 read_folder <- stream_read_csv(spark, source) 
 
 process_stream <- read_folder %>%
@@ -224,7 +263,9 @@ server <- function(input, output, session){
 }
 runGadget(ui, server)
 ```
+
 You should see something similar to:
+
 ![R streaming on spark](img/shiny.png)
 
 
@@ -234,6 +275,8 @@ stream_stop(write_output)
 ```
 
 ## ML Pipeline Model
+
+This example uses a fitted Pipeline Model to process the input, and saves the predictions to the output. This approach would be used to apply Machine Learning on top of streaming data.
 
 ```{r}
 if(file.exists(source)) unlink(source, TRUE)

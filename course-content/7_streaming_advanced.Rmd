@@ -3,7 +3,9 @@ title: "Streaming advanced"
 output: html_notebook
 ---
 
-Load spark
+Watermarked Window Aggregations and Joins
+
+## Load spark
 ```{r}
 library(sparklyr)
 library(dplyr)
@@ -11,6 +13,8 @@ library(future)
 # library(arrow)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
+# conf$`spark.sql.shuffle.partitions` <- "3"
+# conf$`spark.sql.shuffle.partitions` <- "200"
 # Enable kryo to decrease serialization overhead
 conf$spark.serializer <- "org.apache.spark.serializer.KryoSerializer"
 spark <- spark_connect(master = "local", config = conf)
@@ -47,13 +51,34 @@ Aggregations over a sliding event-time window are straightforward with Structure
 
 ![illustration of above query](img/structured-streaming-window.png)
 
-However, to run this query for days, it’s necessary for the system to bound the amount of intermediate in-memory state it accumulates. Watermarking has been introduced just for this.
+**performance considerations**
+
+It will take a surprisingly long time for the previous query to start generating data (on a real spark cluster; when only running locally sparklyR automatically set's it up correctly) .
+
+It's our `groupBy()`. `groupBy()` causes a shuffle, and, by default, Spark SQL shuffles to 200 partitions. In addition, we're doing a *stateful* aggregation: one that requires Structured Streaming to maintain and aggregate data over time.
+
+One way to reduce this overhead is to reduce the number of partitions Spark shuffles to:
+```{r}
+spark_session_config(spark, "spark.sql.shuffle.partitions", 2L)
+# spark_session_config(spark, "spark.sql.shuffle.partitions", 200L)
+```
+It is left as an exercise to the reader to experiment with different levels of shuffle paralellism.
+
+There is a another problem: to run this query for days, it’s necessary for the system to bound the amount of intermediate in-memory state it accumulates. Every window has to be separately persisted and maintained. Over time, this data will build up, slowing things down.
+
+It can be mitigated when selecting a coarser window (instead of seconds minutes or days) but eventually even this will run out of resources.
+
+Instead **watermarking** is a better solution:
+Watermarking has been introduced just for this.
 In R `stream_watermark(df, column="timestamp", threshold="14 days")` enables Watermarking.
 
+`window(timestamp,  "7 days", "3 days")` which defines a sliding window over the timestamp (watermark) column which has a size of 7 days (any data later than the watermark is dropped, within this time, the window is updated) and and slides over every 3 days.
+There *is later than the watermark* means:
+For a specific window starting at time $T$, Spark will maintain state and allow late data to update the state until (*max event time* seen by Spark - *late threshold*) exceeds $T$, i.e. is older than 14 days.
 
 ![watermarking](img/structured-streaming-watermark-update-mode.png)
 
-`window(timestamp,  "7 days", "3 days")` defines a sliding window over the timestamp column which has a size of 7 days (any data later than the watermark (14-days) is dropped, within this time, the window is updated) and and slides over every 3 days.
+Example code:
 
 ```{r}
 read_folder <- stream_read_csv(spark, source) 
@@ -82,6 +107,9 @@ tbl(spark, my_table)  # execute repeatedly
 ##########################################
 #stream_view(write_output)
 ```
+
+
+
 
 ### stream-stream JOINs
 
@@ -137,20 +165,23 @@ read_folder_1 <- stream_read_csv(spark, source_1) %>%
 read_folder_2 <- stream_read_csv(spark, source_2)%>%
   stream_watermark(column="timestamp", threshold="7 days")
 
-# TODO how to add time windows into JOIN?
+# How can windows be added into join even though sparklyR seems to muss them?
 #expr("""
 #    clickAdId = impressionAdId AND
 #    clickTime >= impressionTime AND
 #    clickTime <= impressionTime + interval 1 hour
 #    """)
-joined_streams <- read_folder_1 %>% left_join(read_folder_2, by = c("category"= "second_category"))
+
+# ERROR: this one fails (bug in sparklyr that the watermarks are not picket up correctly)
+# Stream-stream outer join between two streaming DataFrame/Datasets is not supported without a watermark in the join keys, or a watermark on the nullable side and an appropriate range condition
+#joined_streams <- read_folder_1 %>% left_join(read_folder_2, by = c("category"= "second_category"))
+
+# this one works
+joined_streams <- read_folder_1 %>% inner_join(read_folder_2, by = c("category"= "second_category"))
 
 my_table <- "stream"
 stream_write_memory(joined_streams, name = my_table)
 
-# ERROR
-# Stream-stream outer join between two streaming DataFrame/Datasets is not supported without a watermark in the join keys, or a watermark on the nullable side and an appropriate range condition
-# Why is watermark not defined?
 tbl(spark, my_table)  # execute repeatedly
 
 ################# TODO add time window into join and watermarks
@@ -159,6 +190,10 @@ invisible(future(stream_generate_test(df = sampling_df_2, interval = 0.5, iterat
 
 tbl(spark, my_table)  # execute repeatedly
 ```
+
+Joining Stream with Batch dataset works fine.
+Joining a Stream with another stream and applying an inner join also works fine.
+But for a left (outer) join on two streams sparklyR somehow messes up the watermarking and the join does not work.
 
 ### Triggers
 

@@ -1,0 +1,75 @@
+---
+title: "Basic Read Write Operations for a database"
+output: html_notebook
+---
+
+## preparing the database
+
+We want to run a database locally. Docker is well suited for this purpose:
+
+The commandas to start / stop the database:
+
+```{r comment=''}
+cat(readLines('Makefile'), sep = '\n')
+```
+
+The definition of the docker image to pull and configuration about which ports to forward to the local host:
+
+```{r comment=''}
+cat(readLines('docker-compose.yml'), sep = '\n')
+```
+
+So start the database
+
+## spark
+
+Start spark as regular, however this time we additionall need to add a JDBC driver for the database.
+First download the jar. In case of postgresql this can be accomplished via:
+
+https://jdbc.postgresql.org/download.html
+
+```{r}
+library(sparklyr)
+library(dplyr)
+conf <- spark_config()
+conf$`sparklyr.shell.driver-memory` <- "8G"
+conf$`sparklyr.shell.driver-class-path` <- "postgresql-42.2.6.jar"
+
+spark <- spark_connect(master = "local", config = conf)
+```
+
+First read some file
+
+```{r}
+dummy_data_tbl <- copy_to(spark, iris)
+```
+
+now write to the database
+
+```{r}
+spark_write_jdbc(dummy_data_tbl, "dumm_table", options = list(
+  url = "jdbc:postgresql://localhost:5432/analytics",
+  user = "analytics",
+  password = "analytics",
+  driver = "org.postgresql.Driver"))
+```
+
+
+Now a regular JDBC read works as follows:
+
+```{r}
+spark_read_jdbc(spark, "sample_jdbc",  options = list(
+  url = "jdbc:postgresql://localhost:5432/analytics",
+  user = "analytics",
+  password = "analytics",
+  dbtable = "foo",
+  driver = "org.postgresql.Driver"))# for predicate pushdown: (SELECT * FROM table_name WHERE field > 1) as my_query"
+```
+
+
+## cleanup
+
+Finally, close the spark session again.
+```{r}
+spark_disconnect(spark)
+```
