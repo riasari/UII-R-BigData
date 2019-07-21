@@ -35,5 +35,5 @@ Course content for the R and Big Data class 2019 at UII.
 	  - [xgboost](course-content/5.3_xgbboost.Rmd)
 	- [**capstone project**](course-content/capstone-project)
 	
-- [faculty talk](https://docs.google.com/presentation/d/1RBh-fe3DnwvgAzZ4xiovzKrrn811abraUIlJlX3TFms/edit?usp=sharing)
+- [faculty talk](https://drive.google.com/open?id=1wpbQh0CuEbNHQlP9YEqvA4VbIEI9ABbm)
 
