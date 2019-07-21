@@ -33,7 +33,7 @@ Course content for the R and Big Data class 2019 at UII.
 	  - [applications geospatial](course-content/5_applications_geospatial.Rmd)
 	  - [graph analytics](course-content/5.2_graph_analytics.Rmd)
 	  - [xgboost](course-content/5.3_xgbboost.Rmd)
-	- [**capstone project**](capstone-project)
+	- [**capstone project**](course-content/capstone-project)
 	
 - [faculty talk](https://docs.google.com/presentation/d/1RBh-fe3DnwvgAzZ4xiovzKrrn811abraUIlJlX3TFms/edit?usp=sharing)
 
