@@ -33,7 +33,12 @@ library(sparklyr)
 library(dplyr)
 conf <- spark_config()
 conf$`sparklyr.shell.driver-memory` <- "8G"
-conf$`sparklyr.shell.driver-class-path` <- "postgresql-42.2.6.jar"
+
+# either download the file
+#conf$`sparklyr.shell.driver-class-path` <- "postgresql-42.2.6.jar"
+
+# or load with maven cooridnates
+conf$`sparklyr.shell.packages` <- "org.postgresql:postgresql:42.2.6"
 
 spark <- spark_connect(master = "local", config = conf)
 ```
@@ -47,7 +52,7 @@ dummy_data_tbl <- copy_to(spark, iris)
 now write to the database
 
 ```{r}
-spark_write_jdbc(dummy_data_tbl, "dumm_table", options = list(
+spark_write_jdbc(dummy_data_tbl, "dumm_table", mode = "Overwrite", options = list(
   url = "jdbc:postgresql://localhost:5432/analytics",
   user = "analytics",
   password = "analytics",

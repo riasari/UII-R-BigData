@@ -21,12 +21,14 @@ Course content for the R and Big Data class 2019 at UII.
 	- extensions (not part, only mentioned briefly)
 	  - [scala UDF](course-content/3_scala_udf.Rmd)
 	- machine learning
-	  - [brief recap machine learning methods](todo)
+	  - [brief recap machine learning methods](https://docs.google.com/presentation/d/165fjvjpD072bx1I2mj8DMZqlvAunQAIcJHDcRL3Fezk/edit?usp=sharing)
 	  - [distributed ML, scoring, governance](course-content/4_machine_learning.Rmd)
 	  - https://github.com/harryprince/awesome-sparklyr
 	  - [anomaly detection using h2o](course-content/4.1_anomaly_detection.Rmd)
-	- [streaming and shiny](course-content/6_streaming_shiny.Rmd)
-	- [streaming advanced (sliding windows, joins)](course-content/7_streaming_advanced.Rmd)
+	- streaming
+	  - [streaming and shiny](course-content/6_streaming_shiny.Rmd)
+	  - [intro watermarking slides](https://docs.google.com/presentation/d/14QkBmC6rLfW1kmLePlVoMfS-kHLNRqcJ9QhO1ZB7IUM/edit?usp=sharing)
+	  - [streaming advanced (sliding windows, joins)](course-content/7_streaming_advanced.Rmd)
 	- further (advanced) content if time permits
 	  - [applications geospatial](course-content/5_applications_geospatial.Rmd)
 	  - [graph analytics](course-content/5.2_graph_analytics.Rmd)
